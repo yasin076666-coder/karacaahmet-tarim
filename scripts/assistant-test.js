@@ -45,6 +45,26 @@ check((await ask('selam')).includes('Anlayamadım'),'anlaşılmayan cümlede yar
 // 6) Mikrofon: destek yoksa klavye mikrofonuna yönlendirir (hata vermez)
 await p.evaluate(()=>{delete window.SpeechRecognition;window.webkitSpeechRecognition=undefined;asstListen();});
 check((await p.locator('#asst-out').innerText()).includes('klavyedeki'),'ses tanıma yoksa klavye mikrofonu önerildi');
+// 7) Mikrofon akışı (sahte tanıyıcı): canlı yazı, susunca gönderme, sesli cevap, durdurma
+await p.evaluate(()=>{
+  window.__spoken=[]; Object.defineProperty(window,'speechSynthesis',{configurable:true,value:{cancel(){},getVoices:()=>[{lang:'tr-TR',name:'TR'}],speak:u=>{if(u.text.trim())window.__spoken.push(u.text);}}});
+  window.SpeechSynthesisUtterance=function(t){this.text=t;};
+  window.webkitSpeechRecognition=function(){const r=this;window.__rec=r;r.start=()=>{};r.stop=()=>{r.onend&&r.onend();};};
+});
+await p.evaluate(()=>asstListen());
+check((await p.locator('#asst-out').innerText()).includes('Dinliyorum'),'mikrofon açıldı: "Dinliyorum…"');
+await p.evaluate(()=>window.__rec.onresult({results:[Object.assign([{transcript:'kasada ne'}],{isFinal:false})]}));
+check(await p.locator('#asst-input').inputValue()==='kasada ne','konuşurken yazı kutuda canlı göründü');
+check(!(await p.evaluate(()=>window.__spoken.length)),'yarım cümlede henüz gönderilmedi');
+await p.evaluate(()=>{window.__rec.onresult({results:[Object.assign([{transcript:'kasada ne kadar var'}],{isFinal:true})]});window.__rec.onend();});
+const spoken=await p.evaluate(()=>window.__spoken);
+const cash=(await p.locator('#cash-total').innerText()).replace('₺','').replace(/,00$/,'');
+check(spoken.length===1 && spoken[0].includes(cash+' lira') && !spoken[0].includes('₺'),'cümle bitince gönderildi ve cevap sesli okundu: "'+spoken[0]+'"');
+await p.evaluate(()=>{asstListen();});
+await p.evaluate(()=>asstListen()); // tekrar basınca durur
+check(await p.evaluate(()=>asstRec===null) && await p.locator('#asst-mic.bg-emerald-600').count()===1,'mikrofona tekrar basınca dinleme durdu');
+await ask('Kasada ne kadar var');
+check((await p.evaluate(()=>window.__spoken.length))===1,'yazarak sorulunca sesli okunmadı');
 check(errs.length===0,'sayfa hatası yok '+JSON.stringify(errs.slice(0,3)));
 await p.screenshot({path:process.env.SHOT||'/dev/null'}).catch(()=>{});
 console.log(fails?`SONUÇ: ${fails} BAŞARISIZ`:'SONUÇ: TÜM KONTROLLER GEÇTİ'); await b.close(); s.close(); process.exit(fails?1:0);});

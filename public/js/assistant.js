@@ -116,7 +116,25 @@ function parseCommand(text, ctx) {
 }
 
 // ---------------- Arayüz ----------------
-function asstSay(html) { const el = document.getElementById('asst-out'); el.innerHTML = html; el.classList.remove('hidden'); }
+let asstVoiceTurn = false; // komut mikrofondan geldiyse cevap sesli okunur
+function asstSay(html) {
+  const el = document.getElementById('asst-out'); el.innerHTML = html; el.classList.remove('hidden');
+  if (asstVoiceTurn) asstSpeak(asstSpeechText(html));
+}
+// Ekrandaki cevabı okunacak metne çevirir: "₺9.570,00" → "9.570 lira", "−" → "eksi". Saf fonksiyon.
+function asstSpeechText(html) {
+  return String(html).replace(/<br\s*\/?>/gi, '. ').replace(/<[^>]+>/g, '')
+    .replace(/[+−-]?₺([\d.]+),(\d{2})/g, (m, n, k) => (m[0] === '−' || m[0] === '-' ? 'eksi ' : '') + n + ' lira' + (k === '00' ? '' : ' ' + (+k) + ' kuruş'))
+    .replace(/ − /g, ' eksi ').replace(/ = /g, ' eşittir ').replace(/[·•]/g, ', ')
+    .replace(/[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/gu, '').replace(/\s+/g, ' ').trim();
+}
+function asstSpeak(text) {
+  if (!text || !window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
+  try { speechSynthesis.cancel(); } catch (e) {}
+  const u = new SpeechSynthesisUtterance(text), v = speechSynthesis.getVoices().find(x => /^tr/i.test(x.lang));
+  u.lang = 'tr-TR'; u.rate = 1.05; if (v) u.voice = v;
+  try { speechSynthesis.speak(u); } catch (e) {} // okuma olmasa da asistan çalışmaya devam eder
+}
 function asstCtx() {
   const uniq = a => [...new Map(a.filter(Boolean).map(x => [fk(x), x.trim()])).values()];
   return {
@@ -220,15 +238,30 @@ function asstReport(cmd) {
   if (cmd.metric === 'collected') return `${label} tahsilat: <b>${formatMoney(sum(sales.flatMap(r => r.payments).filter(p => inR(p.date)), p => p.amount))}</b>`;
   return `${label} satış: <b>${formatMoney(S)}</b> (${sales.filter(r => inR(r.date)).length} satış)`;
 }
-// Sesle söyleme: tarayıcı destekliyorsa doğrudan, yoksa klavyedeki mikrofon
+// Sesle söyleme: söylenen kutuda canlı görünür, susunca gönderilir; tekrar basınca durur.
+let asstRec = null;
 function asstListen() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition, inp = document.getElementById('asst-input');
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition, inp = document.getElementById('asst-input'), btn = document.getElementById('asst-mic');
+  if (asstRec) { asstRec.stop(); return; }
   const fallback = () => { asstSay('Bu ekranda doğrudan ses tanıma açılamadı. Kutuya dokunup klavyedeki 🎤 tuşuyla söyleyin, sonra gönderin.'); inp.focus(); };
   if (!SR) return fallback();
-  const r = new SR(); r.lang = 'tr-TR'; r.interimResults = false; r.maxAlternatives = 1;
-  const btn = document.getElementById('asst-mic'); btn.classList.add('animate-pulse');
-  r.onresult = e => { inp.value = e.results[0][0].transcript; runAssistant(); };
-  r.onerror = e => { if (e.error === 'no-speech') asstSay('Ses duyulmadı, tekrar deneyin.'); else fallback(); };
-  r.onend = () => btn.classList.remove('animate-pulse');
-  try { r.start(); asstSay('Dinliyorum…'); } catch (e) { btn.classList.remove('animate-pulse'); fallback(); }
+  // iPhone sesli okumaya yalnız dokunuşla izin verir: dokunurken sessiz bir okuma ile kilidi aç
+  if (window.speechSynthesis && window.SpeechSynthesisUtterance) { try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch (e) {} }
+  const r = new SR(); r.lang = 'tr-TR'; r.interimResults = true; r.continuous = false; r.maxAlternatives = 1;
+  let done = false;
+  r.onresult = e => {
+    const res = [...e.results], text = res.map(x => x[0].transcript).join(' ').trim();
+    inp.value = text;
+    if (res.length && res[res.length - 1].isFinal && !done) { done = true; asstVoiceTurn = true; try { runAssistant(); } finally { asstVoiceTurn = false; } }
+  };
+  r.onerror = e => { if (e.error === 'no-speech') asstSay('Ses duyulmadı, tekrar deneyin.'); else if (e.error !== 'aborted') fallback(); };
+  r.onend = () => {
+    asstRec = null; btn.classList.remove('animate-pulse', 'bg-rose-600'); btn.classList.add('bg-emerald-600');
+    if (!done && inp.value.trim()) { done = true; asstVoiceTurn = true; try { runAssistant(); } finally { asstVoiceTurn = false; } } // son parça "final" gelmeden bittiyse
+  };
+  try {
+    r.start(); asstRec = r; inp.value = '';
+    btn.classList.add('animate-pulse', 'bg-rose-600'); btn.classList.remove('bg-emerald-600');
+    asstSay('Dinliyorum… Bitirince susun ya da mikrofona tekrar basın.');
+  } catch (e) { asstRec = null; fallback(); }
 }

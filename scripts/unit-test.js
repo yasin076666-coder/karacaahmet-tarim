@@ -24,7 +24,7 @@ console.log('Birim testleri geçti.');
 // ---- Asistan ayrıştırıcısı ----
 const actx = {};
 vm.createContext(actx);
-vm.runInContext(fs.readFileSync(path.join(__dirname, '../public/js/assistant.js'), 'utf8') + '\nthis.parseCommand = parseCommand;', actx);
+vm.runInContext(fs.readFileSync(path.join(__dirname, '../public/js/assistant.js'), 'utf8') + '\nthis.parseCommand = parseCommand; this.asstSpeechText = asstSpeechText;', actx);
 const C = { today: '2026-11-20', customers: ['Halil kardeşi', 'Halil', 'Kor ateş', 'Latif', 'Fatoş'], suppliers: ['Hal', 'Mehmet'], products: ['Kıvırcık', 'Lahana', 'Kara lahana', 'Maydanoz', 'Düz marul'] };
 const P = t => JSON.parse(JSON.stringify(actx.parseCommand(t, C)));
 const I = (prod, qty, unit, price) => ({ prod, qty, unit, price });
@@ -59,3 +59,10 @@ for (const [text, want] of cases) {
 }
 assert.strictEqual(bad, 0, `${bad} asistan cümlesi yanlış anlaşıldı`);
 console.log(`Asistan: ${cases.length} cümlenin hepsi doğru anlaşıldı.`);
+
+// ---- Sesli okuma metni ----
+const ST = actx.asstSpeechText;
+assert.strictEqual(ST('Bu ay: satış ₺12.500,00 − alış ₺3.000,50 − gider ₺0,00 = net kâr <b>₺9.499,50</b>'), 'Bu ay: satış 12.500 lira eksi alış 3.000 lira 50 kuruş eksi gider 0 lira eşittir net kâr 9.499 lira 50 kuruş');
+assert.strictEqual(ST('💵 Kasadaki nakit: <b>₺10.382,00</b>'), 'Kasadaki nakit: 10.382 lira');
+assert.strictEqual(ST('Bu ay en çok satılanlar: <br>1. <b>Kıvırcık</b> 20 adet · ₺500,00'), 'Bu ay en çok satılanlar: . 1. Kıvırcık 20 adet , 500 lira');
+console.log('Sesli okuma metni testleri geçti.');
