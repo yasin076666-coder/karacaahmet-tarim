@@ -83,7 +83,7 @@ function buildModals(){
 function openModal(id){
  if(['tripModal','fuelModal','expenseModal'].includes(id)&&!state.vehicles.length){toast('Önce bir araç ekleyin.','error');id='vehicleModal'}
  setupSuggestions();if(!editTarget)resetEditModal(id);
- const m=$(id);m.classList.remove('hidden');m.classList.add('flex');setTimeout(()=>{const f=m.querySelector('input:not([type=hidden]),select');if(f&&window.matchMedia('(min-width:768px)').matches)f.focus()},50);
+ const m=$(id);m.classList.remove('hidden');m.classList.add('flex');{const f=m.querySelector('input:not([type=hidden]),select');if(f&&window.matchMedia('(min-width:768px)').matches)f.focus()}
  if(id==='payModal'){$('payDate').value=today();fillPayTrips();return}
  const p=({tripModal:['tripDate','tripVehicle','tripDriver'],fuelModal:['fuelDate','fuelVehicle','fuelDriver'],expenseModal:['expDate','expVehicle','expDriver']})[id];if(!p)return;
  $(p[0]).value=today();syncDriver(p[1],p[2]);if(id==='tripModal'){if($('tripCompany'))$('tripCompany').value='';$('tripComm').readOnly=false;$('tripComm').value=0;previewTrip();}

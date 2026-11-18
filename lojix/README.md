@@ -25,7 +25,7 @@ npx firebase-tools deploy --only hosting,firestore:rules --project lojix-pro  # 
 npx firebase-tools emulators:start --only auth,firestore --project lojix-pro   # ayrı terminalde
 node scripts/sync-test.js   # iki telefon + yabancı hesap: taşıma, canlı eşitleme, çevrimdışı, kurallar
 node scripts/ui-test.js     # araç ekle/sil, sefer km, fatura arama, sefere bağlı tahsilat, formlar (emülatör gerekmez)
-node scripts/assistant-test.js   # asistan: 24 cümle (sefer, yakıt, gider, tahsilat, rapor)
+node scripts/assistant-test.js   # asistan: 46 cümle (sefer, yakıt, gider, tahsilat, ses tanıma biçimleri, tarih, rapor, iptal)
 ```
 `scripts/seed.json` uydurma deneme verisidir.
 

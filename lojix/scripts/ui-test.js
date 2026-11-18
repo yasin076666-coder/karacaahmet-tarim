@@ -98,6 +98,7 @@ async function run() {
     await P.locator('#asst-input').press('Enter');
     check(await visible(P, 'tripModal') && await P.inputValue('#tripVehicle') === 'V0' && await P.inputValue('#tripRoute') === 'Antalya - İstanbul'
       && await P.inputValue('#tripPrice') === '45000' && await P.inputValue('#tripKm') === '900' && await P.inputValue('#tripClient') === 'Toros Gıda', 'Yazılan cümle sefer formunu doldurdu');
+    check((await P.textContent('#toasts')).includes('Anladığım: Sefer · 07 ABC 101 · Antalya - İstanbul'), 'Ne anlaşıldığı gösterildi');
     const nTrips = (await st(P)).trips.length;
     check(nTrips === (await st(P)).trips.length && !(await st(P)).trips.some(t => t.price === 45000 && t.km === 900), 'Asistan kendiliğinden kaydetmedi');
     await submit(P, 'tripModal');
@@ -108,6 +109,9 @@ async function run() {
     await P.waitForTimeout(300);
     check(await visible(P, 'fuelModal') && await P.inputValue('#fuelVehicle') === 'V1' && await P.inputValue('#fuelLiters') === '300' && await P.inputValue('#fuelOdometerKm') === '300500', 'Sesli cümle yakıt formunu doldurdu');
     await P.evaluate(() => closeModal('fuelModal'));
+    await P.evaluate(() => openSheet('quickSheet')); await P.fill('#asst-input', 'Toros Gıda borcu ne kadar?'); await P.locator('#asst-input').press('Enter');
+    await P.evaluate(() => openModal('expenseModal')); await P.evaluate(() => openSheet('quickSheet')); await P.fill('#asst-input', 'vazgeç'); await P.locator('#asst-input').press('Enter');
+    check(!(await visible(P, 'expenseModal')), '"Vazgeç" açık formu kapattı');
     await P.evaluate(() => openSheet('quickSheet')); await P.fill('#asst-input', 'Toros Gıda borcu ne kadar?'); await P.locator('#asst-input').press('Enter');
     check((await P.textContent('#asst-out')).includes('kalan bakiye'), 'Rapor sorusu yanıtlandı: ' + (await P.textContent('#asst-out')).slice(0, 80));
 

@@ -8,7 +8,7 @@ const C = {
   vehicles: [{ id: 'V1', plate: '07 ABC 101', driver: 'Ahmet Yılmaz' }, { id: 'V2', plate: '07 ABC 102', driver: 'Mehmet Kaya' }, { id: 'V3', plate: '34 XYZ 560', driver: 'Ali Demir' }],
   clients: ['Toros Gıda', 'Akdeniz Sebze A.Ş.', 'Ege Meyve Ltd.'],
   companies: [{ id: 'IC_TALYA', name: 'Talya Lojistik' }, { id: 'IC_MOONLOG', name: 'Moonlog Lojistik' }],
-  stations: ['Opet Afyon'], cats: CATS
+  stations: ['Opet Afyon'], cats: CATS, routes: ['Antalya - İstanbul Hal', 'Kumluca - Bayrampaşa Hal']
 };
 const P = t => JSON.parse(JSON.stringify(ctxVm.lxParse(t, C)));
 let fails = 0;
@@ -46,5 +46,30 @@ expect("Toros Gıda'nın borcu ne kadar?", { type: 'report', metric: 'balance', 
 expect('101 bu ay yakıt ne kadar', { type: 'report', period: 'month', metric: 'fuel', vehicleId: 'V1' });
 expect('geçen ay kaç sefer yaptık', { type: 'report', period: 'lastmonth', metric: 'trips' });
 expect('Bugün ne kadar navlun', { type: 'report', period: 'today', metric: 'freight' });
+console.log('Ses tanıma biçimleri ve eş anlamlılar');
+expect('101 antalyadan istanbula sefer kırk beş bin toros gıda', { type: 'trip', vehicleId: 'V1', route: 'Antalya - İstanbul', price: 45000, client: 'Toros Gıda' });
+expect("İstanbul'a Antalya'dan 102 sefer 40 bin", { type: 'trip', vehicleId: 'V2', route: 'Antalya - İstanbul' });
+expect('101 Antalya İstanbul sefer 45000 TL', { type: 'trip', route: 'Antalya - İstanbul', price: 45000 });
+expect('Kumluca Bayrampaşa hal 102 navlon 52 bin', { type: 'trip', vehicleId: 'V2', route: 'Kumluca - Bayrampaşa Hal', price: 52000 });
+expect('101 nakliye ücreti 30 bin Mersinden Konyaya', { type: 'trip', route: 'Mersin - Konya', price: 30000 });
+expect('toros gıta 25 bin havale gönderdi', { type: 'payment', client: 'Toros Gıda', amount: 25000 });
+expect('mehmed 3000 harçırah', { type: 'expense', vehicleId: 'V2', amount: 3000, category: CATS[1] });
+expect('101 depoyu doldurdum 450 litre kırk dört virgül beşten', { type: 'fuel', vehicleId: 'V1', fuelType: 'CEKICI', liters: 450, unitPrice: 44.5, totalCost: 20025 });
+expect('102 ad blu 40 litre 900 lira', { type: 'fuel', vehicleId: 'V2', fuelType: 'ADBLUE', liters: 40 });
+expect('560 ha ge se 850 lira', { type: 'expense', vehicleId: 'V3', amount: 850, category: CATS[5] });
+expect('101 yüz binlik sefer Ankaradan İzmire', { type: 'trip', price: 100000, route: 'Ankara - İzmir' });
+expect('560 fren balata 7500', { type: 'expense', vehicleId: 'V3', amount: 7500, category: CATS[2] });
+console.log('Tarih');
+expect('15 kasımda 101 Antalyadan Ankaraya sefer 36 bin', { type: 'trip', date: '2026-11-15', route: 'Antalya - Ankara', price: 36000 });
+expect('3 gün önce 102 lastik 12 bin', { type: 'expense', date: '2026-11-15', amount: 12000, category: CATS[4] });
+expect('pazartesi günü 101 hgs 600', { type: 'expense', date: '2026-11-16', amount: 600 });
+expect('20 aralık 101 kasko 30 bin', { type: 'expense', date: '2025-12-20', amount: 30000 });
+console.log('Yeni sorular ve iptal');
+expect('En çok kazandıran araç hangisi?', { type: 'report', metric: 'topProfit' });
+expect('bu ay en çok yakan araç', { type: 'report', metric: 'topFuel', period: 'month' });
+expect('kimin borcu var', { type: 'report', metric: 'debtors' });
+expect('vadesi geçenler', { type: 'report', metric: 'debtors' });
+expect('iptal', { type: 'cancel' });
+expect('vazgeç', { type: 'cancel' });
 console.log(fails ? `\n${fails} cümle BAŞARISIZ` : '\nTüm cümleler doğru çözüldü');
 process.exit(fails ? 1 : 0);
