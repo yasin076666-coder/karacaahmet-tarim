@@ -92,6 +92,25 @@ async function run() {
     await P.evaluate(enc => createReceivable(enc), encodeURIComponent('Toros Gıda'));
     check(await P.inputValue('#tripClient') === 'Toros Gıda' && await P.inputValue('#tripPaid') === 'Vadeli / Bekliyor', 'Alacak kartı vadeli sefer formunu müşteriyle açtı');
 
+    console.log('5) Asistan: yazarak ve sesle kayıt, rapor sorusu');
+    await P.evaluate(() => { document.querySelectorAll('.modal-wrap.flex').forEach(m => closeModal(m.id)); openSheet('quickSheet'); });
+    await P.fill('#asst-input', "101 Antalya'dan İstanbul'a sefer 45 bin Toros Gıda 900 km, 30 gün vadeli");
+    await P.locator('#asst-input').press('Enter');
+    check(await visible(P, 'tripModal') && await P.inputValue('#tripVehicle') === 'V0' && await P.inputValue('#tripRoute') === 'Antalya - İstanbul'
+      && await P.inputValue('#tripPrice') === '45000' && await P.inputValue('#tripKm') === '900' && await P.inputValue('#tripClient') === 'Toros Gıda', 'Yazılan cümle sefer formunu doldurdu');
+    const nTrips = (await st(P)).trips.length;
+    check(nTrips === (await st(P)).trips.length && !(await st(P)).trips.some(t => t.price === 45000 && t.km === 900), 'Asistan kendiliğinden kaydetmedi');
+    await submit(P, 'tripModal');
+    check((await st(P)).trips.length === nTrips + 1, 'Kaydet ile sefer eklendi');
+    // Ses tanıma: tarayıcının SpeechRecognition'ı sahte bir cümleyle taklit edilir
+    await P.evaluate(() => { window.SpeechRecognition = function () { this.start = () => setTimeout(() => { this.onresult({ results: [Object.assign([{ transcript: "102'ye 300 litre mazot 44,5'ten kilometre 300500" }], { isFinal: true })] }); this.onend(); }, 50); }; });
+    await P.evaluate(() => asstListen());
+    await P.waitForTimeout(300);
+    check(await visible(P, 'fuelModal') && await P.inputValue('#fuelVehicle') === 'V1' && await P.inputValue('#fuelLiters') === '300' && await P.inputValue('#fuelOdometerKm') === '300500', 'Sesli cümle yakıt formunu doldurdu');
+    await P.evaluate(() => closeModal('fuelModal'));
+    await P.evaluate(() => openSheet('quickSheet')); await P.fill('#asst-input', 'Toros Gıda borcu ne kadar?'); await P.locator('#asst-input').press('Enter');
+    check((await P.textContent('#asst-out')).includes('kalan bakiye'), 'Rapor sorusu yanıtlandı: ' + (await P.textContent('#asst-out')).slice(0, 80));
+
     for (const p of [E, P]) check(!p.errs.length, 'Sayfa hatası yok ' + p.errs.join(' | '));
   } catch (e) { console.error(e); fails++; }
   await b.close(); srv.close();

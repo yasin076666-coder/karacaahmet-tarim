@@ -212,3 +212,7 @@ tbody tr:hover { background: color-mix(in srgb, var(--brand-soft) 45%, transpare
   #print-head { display: flex !important; align-items: center; gap: 14px; border-bottom: 3px solid #0a3a78; padding-bottom: 10px; margin-bottom: 16px; }
   .card { box-shadow: none !important; }
 }
+
+/* Asistan mikrofonu: dinlerken nabız */
+#asst-mic.listening { background: var(--neg); border-color: var(--neg); animation: lxpulse 1s infinite; }
+.voice-cta:hover { border-color: var(--line-strong); }
