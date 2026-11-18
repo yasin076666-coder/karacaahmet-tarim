@@ -1,26 +1,26 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Her oturum yalnızca kendi UID altındaki tek uygulama belgesini okuyup yazabilir.
-    match /users/{userId}/appData/{docId} {
-      allow read: if request.auth != null && request.auth.uid == userId && docId == 'main';
-      allow create, update: if request.auth != null
-        && request.auth.uid == userId
-        && docId == 'main'
-        && request.resource.data.ownerUid == request.auth.uid
-        && request.resource.data.schemaVersion == 1
-        && request.resource.data.revision is int
-        && request.resource.data.revision > 0
-        && request.resource.data.payload is map
-        && request.resource.data.payload.keys().hasAll(['sales','purchases','expenses','cards','cardPays','cashMoves'])
-        && request.resource.data.payload.sales is list
-        && request.resource.data.payload.purchases is list
-        && request.resource.data.payload.expenses is list
-        && request.resource.data.payload.cards is list
-        && request.resource.data.payload.cardPays is list
-        && request.resource.data.payload.cashMoves is list;
-      allow delete: if false;
+    function isOwner(userId) { return request.auth != null && request.auth.uid == userId; }
+
+    // Her kayıt ayrı belge: users/{uid}/{tür}/{kayıtId} = { ownerUid, data, updatedAt }
+    match /users/{userId}/{kind}/{docId} {
+      function validKind() { return kind in ['sales', 'purchases', 'expenses', 'cards', 'cardPays', 'cashMoves', 'meta']; }
+      allow read: if isOwner(userId) && validKind();
+      allow create, update: if isOwner(userId) && validKind()
+        && request.resource.data.keys().hasOnly(['ownerUid', 'data', 'updatedAt'])
+        && request.resource.data.ownerUid == userId
+        && request.resource.data.data is map
+        && request.resource.data.updatedAt == request.time
+        && (kind == 'meta' ? docId == 'settings' : request.resource.data.data.id == docId);
+      allow delete: if isOwner(userId) && validKind();
     }
+
+    // Eski tek belgelik kayıt (revizyon 122'ye kadar): yalnızca okunur yedek. Eski sürüm artık yazamaz.
+    match /users/{userId}/appData/{docId} {
+      allow read: if isOwner(userId) && docId == 'main';
+    }
+
     // Başka bütün belgeler kapalıdır.
     match /{document=**} { allow read, write: if false; }
   }

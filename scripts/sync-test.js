@@ -1,0 +1,125 @@
+// İki telefonlu eşitleme testi (Firebase emülatörüyle). Gerçek veriye dokunmaz.
+// Kullanım: emülatörler açıkken  node scripts/sync-test.js <tohum.json> <uid>
+const { chromium } = require('playwright');
+const http = require('http'), fs = require('fs'), path = require('path');
+const [seedFile, uid] = process.argv.slice(2);
+const seed = JSON.parse(fs.readFileSync(seedFile, 'utf8'));
+const dir = path.join(__dirname, '..', 'public');
+const EMAIL = 'test@ornek.com', PASS = 'test1234';
+let fails = 0;
+const check = (ok, msg) => { console.log((ok ? '  ✔ ' : '  ✘ ') + msg); if (!ok) fails++; };
+
+http.createServer((q, res) => {
+  const f = path.join(dir, q.url === '/' ? 'index.html' : q.url.split('?')[0]);
+  fs.readFile(f, (e, b) => { if (e) { res.writeHead(404); return res.end(); } res.writeHead(200, { 'Content-Type': f.endsWith('.js') ? 'text/javascript' : f.endsWith('.css') ? 'text/css' : 'text/html' }); res.end(b); });
+}).listen(8810, run);
+
+async function phone(b, name, local, storageState) {
+  const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, storageState });
+  await ctx.addInitScript(([s, fresh]) => {
+    window.KT_EMULATOR = true;
+    if (fresh && !sessionStorage.x) { localStorage.clear(); for (const k in s) localStorage.setItem(k, s[k]); sessionStorage.x = 1; }
+  }, [local || {}, !storageState]);
+  const p = await ctx.newPage();
+  p.errs = []; p.dialogs = [];
+  p.on('pageerror', e => p.errs.push(e.message));
+  p.on('dialog', d => { p.dialogs.push(d.message()); d.accept(); });
+  await p.goto('http://localhost:8810/', { waitUntil: 'networkidle' });
+  p.ctx = ctx; p.name = name;
+  return p;
+}
+const data = p => p.evaluate(() => window.__ktGetData());
+const statusText = p => p.evaluate(() => document.getElementById('fb-status').textContent);
+async function until(p, fn, ms = 15000) {
+  const t = Date.now();
+  while (Date.now() - t < ms) { if (await fn()) return true; await p.waitForTimeout(250); }
+  return false;
+}
+async function signIn(p) {
+  await p.evaluate(([e, pw]) => firebase.auth().signInWithEmailAndPassword(e, pw), [EMAIL, PASS]);
+  return until(p, async () => (await statusText(p)).startsWith('Eşitlendi'));
+}
+async function addSale(p, customer, qty, price) {
+  await p.evaluate(() => openModal('sale-modal'));
+  await p.fill('#sale-customer', customer);
+  await p.locator('#sale-items-container .row-prod').first().fill('Maydanoz');
+  await p.locator('#sale-items-container .row-qty').first().fill(String(qty));
+  await p.locator('#sale-items-container .row-price').first().fill(String(price));
+  await p.locator('#sale-form').evaluate(f => f.requestSubmit());
+}
+async function addExpense(p, amount, desc) {
+  await p.evaluate(() => openModal('expense-modal'));
+  await p.fill('#expense-amount', String(amount));
+  await p.fill('#expense-desc', desc);
+  await p.locator('#expense-form').evaluate(f => f.requestSubmit());
+}
+const counts = d => `${d.sales.length}/${d.purchases.length}/${d.expenses.length}/${d.cards.length}/${d.cashMoves.length}`;
+
+async function run() {
+  const b = await chromium.launch();
+  const expected = `${JSON.parse(seed.tp_sales).length}/${JSON.parse(seed.tp_purchases).length}/${JSON.parse(seed.tp_expenses).length}/${JSON.parse(seed.tp_cards).length}/${JSON.parse(seed.tp_cash).length}`;
+
+  console.log('1) Telefon A (eski verisi cihazda) giriş yapar');
+  const A = await phone(b, 'A', seed);
+  check(await signIn(A), 'A eşitlendi: ' + await statusText(A));
+  const dA = await data(A);
+  check(counts(dA) === expected, `A kayıt sayıları ${counts(dA)} = ${expected}`);
+  check(A.dialogs.length === 0, 'A için onay sorusu çıkmadı (silme yok)');
+
+  console.log('2) Telefon B (boş cihaz) giriş yapar, her şey buluttan gelir');
+  const B = await phone(b, 'B', {});
+  check(await signIn(B), 'B eşitlendi');
+  check(counts(await data(B)) === expected, `B kayıt sayıları ${counts(await data(B))}`);
+  check(JSON.stringify((await data(B)).sales.map(s => s.id).sort()) === JSON.stringify(dA.sales.map(s => s.id).sort()), 'A ve B aynı satış kimlikleri');
+
+  console.log('3) A satış ekler → B canlı görür');
+  await addSale(A, 'Canlı Test', 10, 7.5);
+  check(await until(B, async () => (await data(B)).sales.some(s => s.customer === 'Canlı Test' && s.total === 75)), 'B yeni satışı aldı (75 TL)');
+
+  console.log('4) B o satışı siler → A canlı görür');
+  const sid = (await data(B)).sales.find(s => s.customer === 'Canlı Test').id;
+  await B.evaluate(id => deleteRecord('sale', id), sid);
+  check(await until(A, async () => !(await data(A)).sales.some(s => s.id === sid)), 'A’dan da silindi');
+
+  console.log('5) A çevrimdışıyken gider girer, aynı anda B satış girer; A çevrimiçi olunca ikisi de her yerde');
+  await A.ctx.setOffline(true); await A.evaluate(() => window.dispatchEvent(new Event('offline')));
+  await addExpense(A, 123.45, 'Çevrimdışı mazot');
+  await addSale(B, 'Eş Zamanlı', 4, 25);
+  await A.waitForTimeout(1500);
+  check(!(await data(B)).expenses.some(e => e.desc === 'Çevrimdışı mazot'), 'A çevrimdışıyken gider B’ye gitmedi (beklenen)');
+  await A.ctx.setOffline(false); await A.evaluate(() => window.dispatchEvent(new Event('online')));
+  check(await until(B, async () => (await data(B)).expenses.some(e => e.desc === 'Çevrimdışı mazot')), 'internet gelince gider B’ye ulaştı');
+  check(await until(A, async () => (await data(A)).sales.some(s => s.customer === 'Eş Zamanlı')), 'B’nin satışı A’ya ulaştı');
+
+  console.log('6) A çevrimdışı kayıt girer ve buluta göndermeden uygulama kapanır; yeniden açılınca yüklenir');
+  await A.ctx.setOffline(true);
+  await addExpense(A, 9.99, 'Kapanmadan önce');
+  const state = await A.ctx.storageState();
+  await A.ctx.close();
+  const A2 = await phone(b, 'A2', null, state);
+  check(await signIn(A2), 'A yeniden açıldı ve eşitlendi');
+  check(await until(B, async () => (await data(B)).expenses.some(e => e.desc === 'Kapanmadan önce')), 'kapanmadan önceki gider B’ye ulaştı');
+  check(A2.dialogs.length === 0, 'yeniden açılışta silme sorusu çıkmadı');
+
+  console.log('7) B iki kez aynı anda düzenlemez; A2 ve B sayıları eşit');
+  await B.waitForTimeout(1500);
+  check(counts(await data(A2)) === counts(await data(B)), `A ${counts(await data(A2))} = B ${counts(await data(B))}`);
+
+  console.log('8) Toplu silme (11 kayıt) onaysız gitmez');
+  B.dialogs.length = 0;
+  await B.evaluate(() => { const ids = new Set(sales.slice(0, 11).map(s => s.id)); sales = sales.filter(s => !ids.has(s.id)); saveAll(); applyFilters(); });
+  check(await until(B, async () => B.dialogs.some(m => m.includes('Buluttan 11 kayıt silinecek'))), 'onay sorusu çıktı: "Buluttan 11 kayıt silinecek"');
+  check(await until(A2, async () => (await data(A2)).sales.length === (await data(B)).sales.length), 'onaylanınca A’dan da silindi');
+
+  console.log('9) Güvenlik kuralları');
+  const denied = async (fn) => A2.evaluate(fn).then(() => false, e => /permission/i.test(e.message || e.code));
+  check(await denied(() => firebase.firestore().doc(`users/${firebase.auth().currentUser.uid}/appData/main`).set({ x: 1 })), 'eski tek belgeye yazma reddedildi');
+  check(await denied(() => firebase.firestore().doc('users/baskasi/sales/S_1').set({ ownerUid: 'baskasi', data: { id: 'S_1' }, updatedAt: firebase.firestore.FieldValue.serverTimestamp() })), 'başka hesaba yazma reddedildi');
+  check(await denied(() => { const u = firebase.auth().currentUser.uid; return firebase.firestore().doc(`users/${u}/sales/S_X`).set({ ownerUid: u, data: { id: 'BASKA' }, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }); }), 'kimliği tutmayan kayıt reddedildi');
+  check(await A2.evaluate(() => firebase.firestore().doc(`users/${firebase.auth().currentUser.uid}/appData/main`).get().then(d => d.exists && d.data().revision === 122)), 'eski belge (rev 122) okunabiliyor ve değişmemiş');
+
+  const errs = [...A.errs, ...B.errs, ...A2.errs];
+  check(errs.length === 0, 'sayfa hatası yok ' + (errs.length ? JSON.stringify(errs.slice(0, 3)) : ''));
+  console.log(fails ? `SONUÇ: ${fails} KONTROL BAŞARISIZ` : 'SONUÇ: TÜM KONTROLLER GEÇTİ');
+  await b.close(); process.exit(fails ? 1 : 0);
+}
