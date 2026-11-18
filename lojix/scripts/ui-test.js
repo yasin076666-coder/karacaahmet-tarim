@@ -33,7 +33,7 @@ async function run() {
     await submit(E, 'vehicleModal');
     const ev = (await st(E)).vehicles;
     check(ev.length === 1 && ev[0].plate === '34 TEST 01' && ev[0].nextService === 140000, 'Araç eklendi, sonraki bakım km hesaplandı');
-    check((await E.textContent('#dash-title')).includes('1 Araç'), 'Özet başlığı araç sayısını gösteriyor');
+    check((await E.textContent('#dash-title')).includes('1 araç'), 'Özet başlığı araç sayısını gösteriyor');
     await E.evaluate(() => openVehicleModal()); await E.fill('#vehPlate', '34 test 01'); await E.fill('#vehDriver', 'X'); await submit(E, 'vehicleModal');
     check((await st(E)).vehicles.length === 1, 'Aynı plaka ikinci kez eklenmedi');
     await E.evaluate(() => closeModal('vehicleModal'));
@@ -55,7 +55,7 @@ async function run() {
     check(s.vehicles.find(v => v.id === v0.id).odo === v0.odo + 650, 'Aracın km\'si sefer kadar ilerledi');
     check(s.clients.some(c => c.name === 'Yeni Müşteri Ltd.'), 'Yeni müşteri kartı otomatik oluştu');
     await P.evaluate(id => editRecord('trips', id), nt.id);
-    check((await P.textContent('#tripModal h3')).includes('Düzenle'), 'Düzenleme penceresinin başlığı doğru');
+    check((await P.textContent('#tripModal h3')).includes('düzenle'), 'Düzenleme penceresinin başlığı doğru');
     await P.fill('#tripKm', '600'); await submit(P, 'tripModal');
     check((await st(P)).vehicles.find(v => v.id === v0.id).odo === v0.odo + 600, 'Km düzeltilince araç km\'si farka göre düzeldi');
     await P.evaluate(() => switchTab('trips')); await P.fill('#tF-q', 'irs-777');

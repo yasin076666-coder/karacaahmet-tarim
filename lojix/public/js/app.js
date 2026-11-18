@@ -14,7 +14,7 @@ function alertList(){const o=[];
  cariData().forEach(c=>{if(c.bal>0&&c.due&&dayDiff(c.due)<0)o.push({lv:'red',txt:`${c.client} • ${fmtTL(c.bal)} alacağın vadesi ${-dayDiff(c.due)} gün geçti`})});
  return o.sort((a,b)=>(a.lv==='red'?0:1)-(b.lv==='red'?0:1))}
 function renderAlerts(){const a=alertList(),el=$('alerts-box');if(!a.length){el.innerHTML='';return}
- el.innerHTML=`<div class="card p-4 border-l-4 ${a.some(x=>x.lv==='red')?'border-l-rose-500':'border-l-amber-400'}"><div class="font-bold text-sm mb-2">⚠️ ${a.length} Uyarı</div><div class="space-y-1 text-xs md:text-sm">${a.slice(0,8).map(x=>`<div>${x.lv==='red'?'🔴':'🟠'} ${esc(x.txt)}</div>`).join('')}${a.length>8?`<div class="text-slate-400">+${a.length-8} uyarı daha</div>`:''}</div><button onclick="switchTab('maint')" class="mt-2 text-xs font-bold text-blue-600">Bakım & belgelere git →</button></div>`}
+ el.innerHTML=`<div class="card p-4 md:p-5"><div class="font-semibold mb-2 flex items-center gap-2 ${a.some(x=>x.lv==='red')?'text-rose-600':'text-amber-700'}">${ic('alert')}${a.length} uyarı</div><div class="space-y-1.5 text-sm">${a.slice(0,8).map(x=>`<div class="flex items-start gap-2"><span class="w-2 h-2 rounded-full mt-1.5 shrink-0 ${x.lv==='red'?'bg-rose-500':'bg-amber-500'}"></span><span>${esc(x.txt)}</span></div>`).join('')}${a.length>8?`<div class="text-slate-400">+${a.length-8} uyarı daha</div>`:''}</div><button onclick="switchTab('maint')" class="mt-3 text-sm font-semibold text-blue-600">Bakım ve belgeleri aç</button></div>`}
 function badge(d){if(!d)return'<span class="text-[11px] text-slate-400">tarih yok</span>';const n=dayDiff(d);return`<span class="${n<=7?'bg-rose-100 text-rose-700':n<=30?'bg-amber-100 text-amber-800':'bg-emerald-100 text-emerald-700'} px-2 py-0.5 rounded-full text-[11px] font-bold">${n<0?-n+' gün geçti':n+' gün kaldı'}</span>`}
 function renderMaint(){
  if(document.activeElement&&document.activeElement.id&&document.activeElement.id.startsWith('m-'))return;
@@ -23,8 +23,8 @@ function renderMaint(){
   const nc=k=>`<input type="number" inputmode="numeric" id="m-${k}-${i}" value="${v[k]||''}" class="inp !py-1.5" style="min-width:110px">`;
   const r=v.nextService>0&&v.odo>0?v.nextService-v.odo:null;
   const rb=r===null?'<span class="text-[11px] text-slate-400">km girin</span>':`<span class="${r<=0?'bg-rose-100 text-rose-700':r<=2000?'bg-amber-100 text-amber-800':'bg-emerald-100 text-emerald-700'} px-2 py-0.5 rounded-full text-[11px] font-bold">${r<=0?fmtNum(-r,0)+' km geçti':fmtNum(r,0)+' km kaldı'}</span>`;
-  return`<tr><td class="td"><b>${esc(v.plate)}</b>${dl(v)}<div class="text-xs text-slate-500">${esc(v.driver)}</div></td>${dc('muayene')}${dc('sigorta')}${dc('kasko')}<td class="td">${nc('odo')}</td><td class="td">${nc('nextService')}<div class="mt-1">${rb}</div></td><td class="td">${nc('interval')}${v.interval>0&&v.odo>0?`<button onclick="markService(${i})" class="mt-1 text-[11px] font-bold text-blue-600 underline">Bakım yapıldı</button>`:''}</td></tr>`}).join('');
- const sm=$('maint-summary');if(sm){const vehicles=state.vehicles.length,expired=state.vehicles.reduce((n,v)=>n+['muayene','sigorta','kasko'].filter(k=>v[k]&&dayDiff(v[k])<0).length,0),soon=state.vehicles.reduce((n,v)=>n+['muayene','sigorta','kasko'].filter(k=>v[k]&&dayDiff(v[k])>=0&&dayDiff(v[k])<=30).length,0),service=state.vehicles.filter(v=>v.nextService>0&&v.odo>0&&v.nextService-v.odo<=2000).length;sm.innerHTML=[['FİLODAKİ ARAÇ',vehicles,'Bakım ve belge takibi'],['BELGESİ SÜRESİ GEÇEN',expired,'Kontrol gerekli'],['30 GÜN İÇİNDE BİTECEK',soon,'Belge yenileme zamanı'],['BAKIM UYARISI',service,'2.000 km veya daha az']].map(([l,v,sub],i)=>`<div class="lx-mini-stat"><div class="lx-mini-stat-label">${l}</div><div class="lx-mini-stat-value" style="${i===1&&v?'color:#ff8e9a':i===2&&v?'color:#f4c66d':i===3&&v?'color:#ffb36b':''}">${fmtNum(v,0)}</div><div class="lx-mini-stat-sub">${sub}</div></div>`).join('')}}
+  return`<tr><td class="td"><div>${plate(v.plate)}<div class="text-xs text-slate-500 mt-1">${esc(v.driver)}</div></div></td>${dc('muayene')}${dc('sigorta')}${dc('kasko')}<td class="td">${nc('odo')}</td><td class="td">${nc('nextService')}<div class="mt-1">${rb}</div></td><td class="td">${nc('interval')}${v.interval>0&&v.odo>0?`<button onclick="markService(${i})" class="mt-1 text-[11px] font-bold text-blue-600 underline">Bakım yapıldı</button>`:''}</td></tr>`}).join('');
+ const sm=$('maint-summary');if(sm){const vehicles=state.vehicles.length,expired=state.vehicles.reduce((n,v)=>n+['muayene','sigorta','kasko'].filter(k=>v[k]&&dayDiff(v[k])<0).length,0),soon=state.vehicles.reduce((n,v)=>n+['muayene','sigorta','kasko'].filter(k=>v[k]&&dayDiff(v[k])>=0&&dayDiff(v[k])<=30).length,0),service=state.vehicles.filter(v=>v.nextService>0&&v.odo>0&&v.nextService-v.odo<=2000).length;sm.innerHTML=[['Araç',vehicles,'Bakım ve belge takibi'],['Süresi geçen belge',expired,'Kontrol gerekli'],['30 günde bitecek',soon,'Belge yenileme zamanı'],['Bakımı yaklaşan',service,'2.000 km veya daha az']].map(([l,v,sub],i)=>`<div class="lx-mini-stat"><div class="lx-mini-stat-label">${l}</div><div class="lx-mini-stat-value" style="${i===1&&v?'color:var(--neg)':i===2&&v?'color:var(--warn)':i===3&&v?'color:var(--warn)':''}">${fmtNum(v,0)}</div><div class="lx-mini-stat-sub">${sub}</div></div>`).join('')}}
 function readMaint(){state.vehicles.forEach((v,i)=>{['muayene','sigorta','kasko'].forEach(k=>v[k]=$(`m-${k}-${i}`).value);['odo','nextService','interval'].forEach(k=>v[k]=Number($(`m-${k}-${i}`).value)||0)})}
 function saveMaint(){readMaint();document.activeElement.blur();saveState();toast('Bakım ve belge bilgileri kaydedildi.')}
 function markService(i){readMaint();const v=state.vehicles[i];v.nextService=v.odo+v.interval;document.activeElement.blur();saveState()}
@@ -38,11 +38,11 @@ let editTarget=null;
 
 const fld=(id,l,type='text',x='')=>`<div><label class="lbl" for="${id}">${l}</label><input id="${id}" type="${type}" ${x} class="inp"></div>`;
 const sel=(id,l,opts='',x='')=>`<div><label class="lbl" for="${id}">${l}</label><select id="${id}" ${x} class="inp">${opts}</select></div>`;
-const modal=(id,title,fn,body,btn,col)=>`<div id="${id}" class="fixed inset-0 bg-slate-900/60 hidden items-center justify-center z-50 p-4"><div class="bg-white rounded-2xl max-w-lg w-full p-5 shadow-2xl max-h-[90vh] overflow-y-auto"><div class="flex justify-between items-center border-b pb-3 mb-3"><h3 class="font-bold">${title}</h3><button type="button" onclick="closeModal('${id}')" class="text-slate-400 text-2xl leading-none px-2">&times;</button></div><form id="${id}-form" onsubmit="${fn}(event)" class="space-y-3 text-sm">${body}<div class="pt-3 flex justify-end gap-2 border-t"><button type="button" onclick="closeModal('${id}')" class="px-4 py-2 rounded-lg bg-slate-100 font-semibold">İptal</button><button type="submit" class="px-5 py-2 rounded-lg ${col} text-white font-semibold">${btn}</button></div></form></div></div>`;
+const modal=(id,title,fn,body,btn)=>`<div id="${id}" class="modal-wrap fixed inset-0 hidden items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="${id}-title" onclick="if(event.target===this)closeModal('${id}')"><div class="modal-box rounded-2xl max-w-lg w-full p-5 shadow-2xl max-h-[90vh] overflow-y-auto"><div class="flex justify-between items-center pb-3 mb-1"><h3 id="${id}-title" class="font-semibold text-lg">${title}</h3><button type="button" onclick="closeModal('${id}')" class="btn btn-icon" aria-label="Kapat"><svg class="ic"><use href="#i-plus" transform="rotate(45 12 12)"/></svg></button></div><form id="${id}-form" onsubmit="${fn}(event)" class="space-y-3 text-sm">${body}<div class="pt-4 flex justify-end gap-2"><button type="button" onclick="closeModal('${id}')" class="btn btn-quiet">Vazgeç</button><button type="submit" class="btn btn-primary">${btn}</button></div></form></div></div>`;
 const g2=h=>`<div class="grid grid-cols-2 gap-3">${h}</div>`,g3=h=>`<div class="grid grid-cols-3 gap-3">${h}</div>`;
 function buildModals(){
  $('modals').innerHTML=
- modal('tripModal','🛣️ Yeni Sefer & Navlun','saveTrip',
+ modal('tripModal','Yeni sefer','saveTrip',
   g2(fld('tripDate','Tarih','date','required')+sel('tripVehicle','Araç','',"required onchange=\"syncDriver('tripVehicle','tripDriver');previewTrip()\""))+
   g2(sel('tripDriver','Şoför','','required')+fld('tripCargo','Yük & Frigo Derecesi','text','list="cargoSuggestions" placeholder="Yaş Sebze (+4°C)"'))+
   g2(fld('tripRoute','Güzergâh (Nereden - Nereye)','text','required list="routeSuggestions" placeholder="Antalya - İstanbul Hal"')+fld('tripClient','Firma / Müşteri','text','required list="clientSuggestions"'))+
@@ -52,42 +52,43 @@ function buildModals(){
   g2(fld('tripDue','Vade Tarihi (vadeliyse)','date')+fld('tripComm','Komisyon (%)','number','min="0" max="100" step="0.1" value="0" inputmode="decimal" oninput="previewTrip()"'))+
   g2(fld('tripDeduct','Müşteri Kesintisi (₺)','number','min="0" step="0.01" value="0" inputmode="decimal" oninput="previewTrip()"')+fld('tripExtra','Sefer Masrafı (₺: HGS, harcırah)','number','min="0" step="0.01" value="0" inputmode="decimal" oninput="previewTrip()"'))+
   '<div id="tripPreview" class="text-xs bg-slate-50 border border-slate-200 rounded-lg p-3"></div>',
-  'Seferi Kaydet','bg-emerald-600')+
- modal('fuelModal','⛽ Yakıt Girişi','saveFuel',
+  'Seferi kaydet')+
+ modal('fuelModal','Yakıt kaydı','saveFuel',
   g2(fld('fuelDate','Tarih','date','required')+sel('fuelVehicle','Araç','',"required onchange=\"syncDriver('fuelVehicle','fuelDriver')\""))+
   g2(sel('fuelDriver','Şoför','','required')+sel('fuelType','Yakıt Türü','<option value="CEKICI">Çekici Mazotu</option><option value="FRIGO">Frigo Dorse Mazotu</option><option value="ADBLUE">AdBlue</option>'))+
   g3(fld('fuelLiters','Litre','number','required min="0.1" step="0.01" inputmode="decimal" oninput="calcFuel()"')+fld('fuelUnitPrice','Litre Fiyatı (₺)','number','required min="0.01" step="0.01" inputmode="decimal" oninput="calcFuel()"')+fld('fuelTotalCost','Toplam (₺)','number','required min="0.01" step="0.01" inputmode="decimal"'))+
   g2(fld('fuelOdometerKm','Araç Gösterge KM (çekici mazotunda zorunlu)','number','min="0" step="1" inputmode="numeric"')+fld('fuelStation','Petrol / İstasyon','text','list="stationSuggestions" placeholder="Opet Afyon / Shell"')),
-  'Yakıtı Kaydet','bg-amber-500')+
- modal('expenseModal','🔧 Gider Girişi','saveExpense',
+  'Yakıtı kaydet')+
+ modal('expenseModal','Gider kaydı','saveExpense',
   g2(fld('expDate','Tarih','date','required')+sel('expVehicle','Araç','',"required onchange=\"syncDriver('expVehicle','expDriver')\""))+
   g2(sel('expDriver','Şoför','','required')+sel('expCategory','Kategori',CATS.map(c=>`<option>${esc(c)}</option>`).join(''),'required'))+
   g2(fld('expAmount','Tutar (₺)','number','required min="0.01" step="0.01" inputmode="decimal"')+fld('expNote','Açıklama','text','required list="expenseNoteSuggestions" placeholder="İstanbul harcırahı"')),
-  'Gideri Kaydet','bg-rose-600')+
- modal('payModal','💵 Tahsilat (Kısmi Ödeme)','savePayment',
+  'Gideri kaydet')+
+ modal('payModal','Tahsilat','savePayment',
   g2(fld('payDate','Tarih','date','required')+sel('payClient','Müşteri','','required onchange="fillPayTrips()"'))+
   sel('payTrip','Hangi sefer için? (isteğe bağlı)','<option value="">Genel tahsilat (vadesi en yakın seferden düşer)</option>')+
   g2(fld('payAmount','Tutar (₺)','number','required min="0.01" step="0.01" inputmode="decimal"')+fld('payNote','Not','text','placeholder="Havale / çek no"')),
-  'Tahsilatı Kaydet','bg-emerald-600')+
- modal('vehicleModal','🚛 Yeni Araç','saveVehicle',
+  'Tahsilatı kaydet')+
+ modal('vehicleModal','Yeni araç','saveVehicle',
   g2(fld('vehPlate','Çekici Plakası','text','required maxlength="20" placeholder="07 ABC 123"')+fld('vehDorse','Dorse Plakası','text','maxlength="20"'))+
   g2(fld('vehModel','Çekici Model','text','maxlength="60" list="modelSuggestions" placeholder="Mercedes Actros"')+fld('vehFrigo','Frigo Ünite','text','maxlength="60" list="frigoSuggestions" placeholder="Thermo King"'))+
   g2(fld('vehDriver','Şoför','text','required maxlength="60" list="driverSuggestions"')+fld('vehPhone','Şoför Telefonu','tel','maxlength="20" inputmode="tel"'))+
   g2(fld('vehOdo','Güncel KM','number','min="0" step="1" inputmode="numeric"')+fld('vehInterval','Bakım Aralığı (KM)','number','min="0" step="1000" value="40000" inputmode="numeric"')),
-  'Aracı Ekle','bg-blue-600')+
- modal('clientModal','👥 Yeni Müşteri Kartı','saveClient',fld('clientName','Müşteri / firma adı','text','required maxlength="120" list="clientSuggestions"'),'Kartı Oluştur','bg-blue-600')+
- modal('companyModal','🏢 Yeni Aracı Şirket','saveCompany',
+  'Aracı ekle')+
+ modal('clientModal','Yeni müşteri','saveClient',fld('clientName','Müşteri / firma adı','text','required maxlength="120" list="clientSuggestions"'),'Müşteriyi ekle')+
+ modal('companyModal','Yeni aracı şirket','saveCompany',
   g2(fld('companyName','Şirket adı','text','required maxlength="120"')+fld('companyRate','Navlun kesintisi (%)','number','required min="0" max="100" step="0.1" value="7" inputmode="decimal"')),
-  'Şirketi Ekle','bg-violet-600');
+  'Şirketi ekle');
 }
 function openModal(id){
  if(['tripModal','fuelModal','expenseModal'].includes(id)&&!state.vehicles.length){toast('Önce bir araç ekleyin.','error');id='vehicleModal'}
  setupSuggestions();if(!editTarget)resetEditModal(id);
- const m=$(id);m.classList.remove('hidden');m.classList.add('flex');
+ const m=$(id);m.classList.remove('hidden');m.classList.add('flex');setTimeout(()=>{const f=m.querySelector('input:not([type=hidden]),select');if(f&&window.matchMedia('(min-width:768px)').matches)f.focus()},50);
  if(id==='payModal'){$('payDate').value=today();fillPayTrips();return}
  const p=({tripModal:['tripDate','tripVehicle','tripDriver'],fuelModal:['fuelDate','fuelVehicle','fuelDriver'],expenseModal:['expDate','expVehicle','expDriver']})[id];if(!p)return;
  $(p[0]).value=today();syncDriver(p[1],p[2]);if(id==='tripModal'){if($('tripCompany'))$('tripCompany').value='';$('tripComm').readOnly=false;$('tripComm').value=0;previewTrip();}
 }
+document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;document.querySelectorAll('.sheet-wrap.open').forEach(x=>closeSheet(x.id));document.querySelectorAll('.modal-wrap.flex').forEach(x=>closeModal(x.id))});
 function closeModal(id){const m=$(id);m.classList.add('hidden');m.classList.remove('flex');if(editTarget&&editTarget.modal===id)editTarget=null}
 function editRecord(collection,id){
  const r=state[collection].find(x=>String(x.id)===String(id));if(!r)return;
@@ -103,9 +104,9 @@ function editRecord(collection,id){
  }else if(collection==='payments'){
   put('payDate',r.date);put('payClient',r.client);fillPayTrips();put('payTrip',r.tripId);put('payAmount',r.amount);put('payNote',r.note);
  }
- const m=$(modalId),title=m.querySelector('h3'),submit=m.querySelector('button[type="submit"]');if(title)title.textContent=({trips:'🛣️ Sefer Kaydını Düzenle',fuels:'⛽ Yakıt Kaydını Düzenle',expenses:'🔧 Gider Kaydını Düzenle',payments:'💵 Tahsilat Kaydını Düzenle'})[collection];if(submit)submit.textContent='Değişiklikleri Kaydet';
+ const m=$(modalId),title=m.querySelector('h3'),submit=m.querySelector('button[type="submit"]');if(title)title.textContent=({trips:'Seferi düzenle',fuels:'Yakıt kaydını düzenle',expenses:'Gideri düzenle',payments:'Tahsilatı düzenle'})[collection];if(submit)submit.textContent='Değişiklikleri kaydet';
 }
-function resetEditModal(modalId){const m=$(modalId);if(!m)return;const title=m.querySelector('h3'),submit=m.querySelector('button[type="submit"]');if(title)title.textContent=({tripModal:'🛣️ Yeni Sefer & Navlun',fuelModal:'⛽ Yakıt Girişi',expenseModal:'🔧 Gider Girişi',payModal:'💵 Tahsilat (Kısmi Ödeme)'})[modalId];if(submit)submit.textContent=({tripModal:'Seferi Kaydet',fuelModal:'Yakıtı Kaydet',expenseModal:'Gideri Kaydet',payModal:'Tahsilatı Kaydet'})[modalId];}
+function resetEditModal(modalId){const m=$(modalId);if(!m)return;const title=m.querySelector('h3'),submit=m.querySelector('button[type="submit"]');if(title)title.textContent=({tripModal:'Yeni sefer',fuelModal:'Yakıt kaydı',expenseModal:'Gider kaydı',payModal:'Tahsilat'})[modalId];if(submit)submit.textContent=({tripModal:'Seferi kaydet',fuelModal:'Yakıtı kaydet',expenseModal:'Gideri kaydet',payModal:'Tahsilatı kaydet'})[modalId];}
 
 function calcFuel(){const l=parseFloat($('fuelLiters').value)||0,p=parseFloat($('fuelUnitPrice').value)||0;$('fuelTotalCost').value=(l*p).toFixed(2)}
 const val=id=>$(id).value;
@@ -117,7 +118,6 @@ function deleteIntermediaryCompany(id){if(!confirm('Aracı şirket kartı silins
 function saveTrip(e){e.preventDefault();const client=val('tripClient').trim();if(client&&!state.clients.some(c=>c.name.toLocaleLowerCase('tr')===client.toLocaleLowerCase('tr')))state.clients.push({id:cid(client),name:client});const data={date:val('tripDate'),vehicleId:val('tripVehicle'),driver:val('tripDriver'),cargo:val('tripCargo').trim(),route:val('tripRoute').trim(),client,price:Number(val('tripPrice')),paid:val('tripPaid'),due:val('tripDue'),intermediaryCompanyId:val('tripCompany')||'',commPct:Number(val('tripComm'))||0,deduct:Number(val('tripDeduct'))||0,extra:Number(val('tripExtra'))||0,km:Number(val('tripKm'))||0,invoiceNo:val('tripInvoice').trim()};if(editTarget&&editTarget.collection==='trips'){const r=state.trips.find(x=>String(x.id)===String(editTarget.id));if(r){if(r.vehicleId===data.vehicleId)bumpOdo(data.vehicleId,data.km-(Number(r.km)||0));else{bumpOdo(r.vehicleId,-(Number(r.km)||0));bumpOdo(data.vehicleId,data.km)}Object.assign(r,data)}}else{state.trips.push({id:Date.now(),...data});bumpOdo(data.vehicleId,data.km)}$('tripModal-form').reset();editTarget=null;closeModal('tripModal');resetEditModal('tripModal');saveState()}
 function saveFuel(e){e.preventDefault();const vehicleId=val('fuelVehicle'),type=val('fuelType'),odometerKm=Number(val('fuelOdometerKm'))||0;const editing=editTarget&&editTarget.collection==='fuels'?state.fuels.find(x=>String(x.id)===String(editTarget.id)):null;const prev=state.fuels.filter(x=>x.id!==(editing&&editing.id)&&x.vehicleId===vehicleId&&x.type==='CEKICI'&&Number(x.odometerKm)>0&&((x.date||'')<=val('fuelDate'))).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||b.id-a.id)[0];if(type==='CEKICI'&&!odometerKm)return toast('Çekici mazotu için aracın gösterge KM bilgisini girin.','error');if(type==='CEKICI'&&prev&&odometerKm<=Number(prev.odometerKm))return toast('Gösterge KM, önceki mazot kaydındaki KM değerinden büyük olmalı.','error');const data={date:val('fuelDate'),vehicleId,driver:val('fuelDriver'),type,liters:Number(val('fuelLiters')),unitPrice:Number(val('fuelUnitPrice')),totalCost:Number(val('fuelTotalCost'))||Number(val('fuelLiters'))*Number(val('fuelUnitPrice')),odometerKm,distanceKm:editing?editing.distanceKm||0:0,station:val('fuelStation').trim()};if(editing)Object.assign(editing,data);else state.fuels.push({id:Date.now(),...data});if(type==='CEKICI'){const vehicle=state.vehicles.find(v=>v.id===vehicleId),later=state.fuels.some(x=>x.vehicleId===vehicleId&&x.type==='CEKICI'&&Number(x.odometerKm)>0&&(x.date||'')>data.date);if(vehicle&&!later)vehicle.odo=odometerKm}$('fuelModal-form').reset();editTarget=null;closeModal('fuelModal');resetEditModal('fuelModal');saveState()}
 function saveExpense(e){e.preventDefault();const data={date:val('expDate'),vehicleId:val('expVehicle'),driver:val('expDriver'),category:val('expCategory'),amount:Number(val('expAmount')),note:val('expNote').trim()};if(editTarget&&editTarget.collection==='expenses'){const r=state.expenses.find(x=>String(x.id)===String(editTarget.id));if(r)Object.assign(r,data)}else state.expenses.push({id:Date.now(),...data});$('expenseModal-form').reset();editTarget=null;closeModal('expenseModal');resetEditModal('expenseModal');saveState()}
-function financeBars(income,cost,net){const max=Math.max(Math.abs(income),Math.abs(cost),Math.abs(net),1);const rows=[['Gelir',income,'bg-emerald-500'],['Gider + kesinti',cost,'bg-rose-500'],['Net kazanç',net,net>=0?'bg-blue-500':'bg-amber-500']];return rows.map(([l,v,c])=>`<div><div class="flex justify-between text-xs mb-1"><span>${l}</span><b>${fmtTL(v)}</b></div><div class="h-3 bg-slate-100 rounded-full overflow-hidden"><div class="h-full ${c} rounded-full" style="width:${Math.min(100,Math.abs(v)/max*100)}%"></div></div></div>`).join('')}
 function setupSuggestions(){const unique=a=>[...new Map(a.filter(v=>v!==null&&v!==undefined).map(v=>String(v).trim()).filter(v=>v.length).map(v=>[v.toLocaleLowerCase('tr'),v])).values()].sort((a,b)=>a.localeCompare(b,'tr'));const vals={station:unique(state.fuels.map(x=>x.station)),client:unique([...state.clients.map(x=>x.name),...state.trips.map(x=>x.client),...state.payments.map(x=>x.client)]),route:unique(state.trips.map(x=>x.route)),cargo:unique(state.trips.map(x=>x.cargo)),expenseNote:unique(state.expenses.map(x=>x.note)),paymentNote:unique(state.payments.map(x=>x.note)),model:unique(state.vehicles.map(x=>x.model)),frigo:unique(state.vehicles.map(x=>x.frigo)),driver:unique(state.vehicles.map(x=>x.driver)),plate:unique(state.vehicles.map(x=>x.plate)),dorse:unique(state.vehicles.map(x=>x.dorse))};Object.entries({stationSuggestions:vals.station,clientSuggestions:vals.client,routeSuggestions:vals.route,cargoSuggestions:vals.cargo,expenseNoteSuggestions:vals.expenseNote,paymentNoteSuggestions:vals.paymentNote,modelSuggestions:vals.model,frigoSuggestions:vals.frigo,driverSuggestions:vals.driver,plateSuggestions:vals.plate,dorseSuggestions:vals.dorse}).forEach(([id,a])=>{const dl=$(id);if(dl)dl.innerHTML=a.map(x=>`<option value="${esc(x)}"></option>`).join('')});const mappings={tripClient:'clientSuggestions',payClient:'clientSuggestions',tripRoute:'routeSuggestions',tripCargo:'cargoSuggestions',fuelStation:'stationSuggestions',expNote:'expenseNoteSuggestions',payNote:'paymentNoteSuggestions'};Object.entries(mappings).forEach(([id,list])=>{const el=$(id);if(el){el.setAttribute('list',list);el.setAttribute('autocomplete','on')}});[['s-model-','modelSuggestions'],['s-frigo-','frigoSuggestions'],['s-driver-','driverSuggestions'],['s-plate-','plateSuggestions'],['s-dorse-','dorseSuggestions']].forEach(([prefix,list])=>document.querySelectorAll(`input[id^="${prefix}"]`).forEach(el=>{el.setAttribute('list',list);el.setAttribute('autocomplete','on')}))}
 function togglePaid(id){const t=state.trips.find(x=>x.id===id);if(t){t.paid=t.paid==='Tahsil Edildi'?'Vadeli / Bekliyor':'Tahsil Edildi';saveState()}}
 function delItem(c,id){if(!confirm('Bu kaydı silmek istediğinize emin misiniz?'))return;state[c]=state[c].filter(x=>x.id!==id);saveState()}
@@ -166,3 +166,19 @@ function resetAll(){
 function printReport(){const mv=$('monthFilter').value;$('print-meta').textContent=$('page-title').textContent+' • Dönem: '+(mv==='ALL'?'Tüm Zamanlar':mv)+' • '+new Date().toLocaleDateString('tr-TR');window.print()}
 (function(){const l=document.querySelector('link[rel="apple-touch-icon"]');if(l)document.querySelectorAll('.lojix-logo').forEach(i=>i.src=l.href)})();
 buildNav();buildModals();switchTab('dashboard');renderAll();setupSuggestions();lxPrepLogo();
+
+// Son 6 ayın navlunu, gider+kesintisi ve neti (dönem filtresinden bağımsız).
+function trendChart(){
+ const base=today().slice(0,7),months=[];let [y,m]=base.split('-').map(Number);
+ for(let i=0;i<6;i++){months.unshift(`${y}-${String(m).padStart(2,'0')}`);if(--m===0){m=12;y--}}
+ const rows=months.map(k=>{const f=a=>a.filter(i=>(i.date||'').startsWith(k)),c=calc(f(state.trips),f(state.fuels),f(state.expenses));return{k,inc:c.gross,out:c.fuel+c.exp+c.cut,net:c.net}});
+ if(!rows.some(r=>r.inc||r.out))return '<p class="text-sm text-slate-500 py-6">Son 6 ayda kayıt yok. İlk seferi ekleyince grafik burada oluşur.</p>';
+ const W=600,H=220,top=24,bot=40,ch=H-top-bot,max=Math.max(...rows.map(r=>Math.max(r.inc,r.out)),1),gw=W/6,bw=Math.min(26,gw/3.2);
+ const sh=v=>v>=1e6?fmtNum(v/1e6,1)+' mn':v>=1e3?fmtNum(v/1e3,0)+' b':fmtNum(v,0);
+ const bars=rows.map((r,i)=>{const x=i*gw+gw/2,hi=r.inc/max*ch,ho=r.out/max*ch;
+  return `<g><title>${MONTHS[+r.k.slice(5)-1]} ${r.k.slice(0,4)}: navlun ${fmtTL(r.inc)}, gider ve kesinti ${fmtTL(r.out)}, net ${fmtTL(r.net)}</title>
+  <rect class="bar-in" x="${x-bw-2}" y="${top+ch-hi}" width="${bw}" height="${Math.max(hi,1)}" rx="4"/><rect class="bar-out" x="${x+2}" y="${top+ch-ho}" width="${bw}" height="${Math.max(ho,1)}" rx="4"/>
+  <text x="${x}" y="${H-22}" text-anchor="middle">${MONTHS[+r.k.slice(5)-1].slice(0,3)}</text>
+  <text x="${x}" y="${H-6}" text-anchor="middle" class="${r.net>=0?'net-pos':'net-neg'}">${r.net<0?'−':''}${sh(Math.abs(r.net))}</text></g>`}).join('');
+ return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Son 6 ayın navlun, gider ve net kâr grafiği"><line x1="0" x2="${W}" y1="${top+ch}" y2="${top+ch}" stroke="var(--line)"/>${bars}</svg>`;
+}
