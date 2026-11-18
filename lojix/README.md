@@ -27,3 +27,5 @@ node scripts/sync-test.js   # iki telefon + yabancı hesap: taşıma, canlı eş
 node scripts/ui-test.js     # araç ekle/sil, sefer km, fatura arama, sefere bağlı tahsilat, formlar (emülatör gerekmez)
 ```
 `scripts/seed.json` uydurma deneme verisidir.
+
+
