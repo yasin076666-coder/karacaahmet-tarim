@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "build:css": "tailwindcss -i src/app.css -o public/css/app.css --minify",
-    "deploy": "npm run build:css && firebase deploy --only hosting"
+    "deploy": "npm run build:css && firebase deploy --only hosting,firestore:rules"
   },
   "devDependencies": { "tailwindcss": "3.4.17" }
 }
