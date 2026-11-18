@@ -42,7 +42,7 @@
     <div id="kpis" class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5"></div>
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
      <div class="lg:col-span-2 card overflow-hidden">
-      <div class="px-5 py-4 border-b border-slate-100 font-bold">🚛 8 Tır Kârlılık & Yakıt Özeti</div>
+      <div id="dash-title" class="px-5 py-4 border-b border-slate-100 font-bold">🚛 Araç Kârlılık & Yakıt Özeti</div>
       <div class="overflow-x-auto"><table class="w-full text-xs md:text-sm">
        <thead><tr><th class="th">Plaka</th><th class="th">Şoför</th><th class="th text-right">Navlun</th><th class="th text-right">Gider</th><th class="th text-center">Lt/100km</th><th class="th text-right">Net Kâr</th></tr></thead>
        <tbody id="dash-tbody" class="divide-y divide-slate-100"></tbody></table></div>
@@ -57,7 +57,7 @@
    </section>
 
    <section id="tab-trips" class="tab-content space-y-4">
-    <div class="card p-4 flex flex-wrap gap-2"><select id="tF-v" onchange="renderTrips()" class="sel"></select><select id="tF-d" onchange="renderTrips()" class="sel"></select></div>
+    <div class="card p-4 flex flex-wrap gap-2"><select id="tF-v" onchange="renderTrips()" class="sel"></select><select id="tF-d" onchange="renderTrips()" class="sel"></select><input id="tF-q" type="search" oninput="renderTrips()" class="sel flex-1 min-w-[180px]" placeholder="Ara: müşteri, güzergâh, fatura no…" aria-label="Seferlerde ara"></div>
     <div id="trip-sum" class="text-xs md:text-sm text-slate-600 px-1"></div>
     <div class="card overflow-x-auto"><table class="w-full text-xs md:text-sm">
      <thead><tr><th class="th">Tarih</th><th class="th">Plaka / Şoför</th><th class="th">Güzergâh & Müşteri</th><th class="th text-right">Navlun</th><th class="th text-right">Kom. + Kesinti</th><th class="th text-right">Sefer Katkısı*</th><th class="th text-center">Tahsilat</th><th class="th"></th></tr></thead>
@@ -129,8 +129,8 @@
      </div>
     </div>
     <div class="card p-5 md:p-6 space-y-4">
-     <div class="lx-section-head"><div class="lx-section-icon">🚛</div><div class="flex-1"><h3 class="font-bold">Araç & şoför tanımları</h3><p class="text-xs text-slate-500 mt-1">Plaka, dorse, araç modeli, frigo ünitesi ve iletişim bilgileri.</p></div><button onclick="saveFleet()" class="btn bg-blue-600">✓ Filoyu Kaydet</button></div>
-     <div class="overflow-x-auto"><table class="w-full text-xs md:text-sm" style="min-width:900px"><thead><tr><th class="th">#</th><th class="th">Çekici Plakası</th><th class="th">Dorse Plakası</th><th class="th">Çekici Model</th><th class="th">Frigo Ünite</th><th class="th">Şoför</th><th class="th">Telefon</th></tr></thead><tbody id="set-tbody"></tbody></table></div>
+     <div class="lx-section-head"><div class="lx-section-icon">🚛</div><div class="flex-1"><h3 class="font-bold">Araç & şoför tanımları</h3><p class="text-xs text-slate-500 mt-1">Plaka, dorse, araç modeli, frigo ünitesi ve iletişim bilgileri.</p></div><button onclick="openVehicleModal()" class="btn bg-emerald-600">＋ Araç Ekle</button><button onclick="saveFleet()" class="btn bg-blue-600">✓ Filoyu Kaydet</button></div>
+     <div class="overflow-x-auto"><table class="w-full text-xs md:text-sm" style="min-width:900px"><thead><tr><th class="th">#</th><th class="th">Çekici Plakası</th><th class="th">Dorse Plakası</th><th class="th">Çekici Model</th><th class="th">Frigo Ünite</th><th class="th">Şoför</th><th class="th">Telefon</th><th class="th"></th></tr></thead><tbody id="set-tbody"></tbody></table></div>
     </div>
     <div class="card p-5 md:p-6 space-y-4">
      <div class="lx-section-head"><div class="lx-section-icon">🏢</div><div class="flex-1"><h3 class="font-bold">Aracı şirket kartları</h3><p class="text-xs text-slate-500 mt-1">İşi size bulan firmaları ve navlun kesinti oranlarını yönetin.</p></div><button onclick="addIntermediaryCompany()" class="btn bg-violet-600">＋ Şirket Ekle</button></div>

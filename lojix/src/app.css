@@ -139,3 +139,8 @@ button{transition:filter .15s,background-color .15s}
 .sync-pill[data-state=error]{background:#fb7185;box-shadow:0 0 0 4px rgba(251,113,133,.15)}
 @keyframes lxpulse{50%{opacity:.4}}
 #lojix-cloud-status[data-tone=ok]{color:#52dfb4!important}#lojix-cloud-status[data-tone=error]{color:#ff8e9a!important}
+#toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));z-index:200;display:grid;gap:8px;width:min(92vw,440px);pointer-events:none}
+@media(min-width:768px){#toasts{bottom:24px;left:auto;right:24px;transform:none}}
+.toast{pointer-events:auto;padding:12px 14px;border-radius:12px;font-size:13px;font-weight:600;color:#e7edf7;background:#16233a;border:1px solid #2c4060;box-shadow:0 12px 30px rgba(0,0,0,.35);border-left:4px solid #34d399;animation:lxin .2s ease-out}
+.toast-error{border-left-color:#fb7185}.toast.out{opacity:0;transform:translateY(6px);transition:.3s}
+@keyframes lxin{from{opacity:0;transform:translateY(8px)}}
