@@ -356,7 +356,7 @@ function confirmPayment() {
 }
 
 // ================= SEKMELER =================
-function switchTab(tabId) {
+function switchTab(tabId, scroll) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.classList.remove('active');
@@ -368,4 +368,5 @@ function switchTab(tabId) {
     activeBtn.classList.add('active');
     activeBtn.classList.remove('text-slate-600');
   }
+  if (scroll) document.getElementById(tabId).scrollIntoView({ behavior: 'smooth', block: 'start' }); // alt menüden: içeriğe git
 }

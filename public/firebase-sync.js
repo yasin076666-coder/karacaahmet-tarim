@@ -91,6 +91,7 @@
     window.__ktApplyData(toAppData(merged));
     ready = true;
     if (ops.length) { say(`${ops.length} değişiklik buluta gönderiliyor…`); await commit(ops); }
+    window.__ktCloudOk = true; if (window.updateBackupBanner) updateBackupBanner();
     say('Eşitlendi. ' + count(merged), 'ok');
   }
 
@@ -146,7 +147,7 @@
     if (changed) { window.__ktApplyData(toAppData(next)); say('Diğer telefondan yeni kayıtlar alındı.', 'ok'); }
   }
 
-  function detach() { unsubs.forEach(u => u()); unsubs = []; ready = false; remote = {}; }
+  function detach() { unsubs.forEach(u => u()); unsubs = []; ready = false; remote = {}; window.__ktCloudOk = false; if (window.updateBackupBanner) updateBackupBanner(); }
   function attach() {
     detach();
     base = loadBase(user.uid);

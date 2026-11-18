@@ -36,7 +36,7 @@
     </div>
   </header>
 
-  <main class="max-w-5xl mx-auto px-3 py-4 space-y-4">
+  <main class="max-w-5xl mx-auto px-3 pt-4 pb-32 space-y-4">
 
     <!-- Yedek Hatırlatma -->
     <div id="card-banner" class="hidden bg-violet-50 border border-violet-200 text-violet-900 rounded-2xl px-3 py-2.5 text-xs"></div>
@@ -133,25 +133,17 @@
       </div>
     </div>
 
-    <!-- Sekme Navigasyonu -->
-    <div class="bg-white p-1 rounded-2xl shadow-sm border border-slate-200 flex text-xs font-bold overflow-x-auto">
-      <button onclick="switchTab('tab-sales')" id="nav-tab-sales" class="tab-btn active flex-1 py-2 px-3 rounded-xl transition text-center whitespace-nowrap">
-        <i class="fa-solid fa-arrow-trend-up mr-1 text-emerald-500"></i> Satışlar (<span id="count-sales">0</span>)
-      </button>
-      <button onclick="switchTab('tab-purchases')" id="nav-tab-purchases" class="tab-btn flex-1 py-2 px-3 rounded-xl transition text-center text-slate-600 whitespace-nowrap">
-        <i class="fa-solid fa-truck mr-1 text-amber-500"></i> Alışlar (<span id="count-purchases">0</span>)
-      </button>
-      <button onclick="switchTab('tab-expenses')" id="nav-tab-expenses" class="tab-btn flex-1 py-2 px-3 rounded-xl transition text-center text-slate-600 whitespace-nowrap">
-        <i class="fa-solid fa-gas-pump mr-1 text-rose-500"></i> Giderler (<span id="count-expenses">0</span>)
-      </button>
-      <button onclick="switchTab('tab-tables')" id="nav-tab-tables" class="tab-btn flex-1 py-2 px-3 rounded-xl transition text-center text-slate-600 whitespace-nowrap">📊 Tablolar</button>
-      <button onclick="switchTab('tab-cards')" id="nav-tab-cards" class="tab-btn flex-1 py-2 px-3 rounded-xl transition text-center text-slate-600 whitespace-nowrap">
-        <i class="fa-solid fa-credit-card mr-1 text-violet-500"></i> 💳 Kartlar
-      </button>
-      <button onclick="switchTab('tab-reports')" id="nav-tab-reports" class="tab-btn flex-1 py-2 px-3 rounded-xl transition text-center text-slate-600 whitespace-nowrap">
-        <i class="fa-solid fa-address-book mr-1 text-indigo-500"></i> Cari & Rapor
-      </button>
-    </div>
+    <!-- Sekme Navigasyonu: telefonda ekranın altında sabit -->
+    <nav class="fixed inset-x-0 bottom-0 z-40 bg-white/95 backdrop-blur border-t border-slate-200 px-1 pt-1" style="padding-bottom:calc(4px + env(safe-area-inset-bottom))">
+      <div class="max-w-5xl mx-auto grid grid-cols-6 gap-0.5 font-bold">
+      <button onclick="switchTab('tab-sales', true)" id="nav-tab-sales" class="tab-btn flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl text-[10px] leading-tight active"><i class="fa-solid fa-arrow-trend-up text-base text-emerald-500"></i><span>Satış <span class="text-slate-400 font-normal">(<span id="count-sales">0</span>)</span></span></button>
+      <button onclick="switchTab('tab-purchases', true)" id="nav-tab-purchases" class="tab-btn flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl text-[10px] leading-tight text-slate-600"><i class="fa-solid fa-truck text-base text-amber-500"></i><span>Alış <span class="text-slate-400 font-normal">(<span id="count-purchases">0</span>)</span></span></button>
+      <button onclick="switchTab('tab-expenses', true)" id="nav-tab-expenses" class="tab-btn flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl text-[10px] leading-tight text-slate-600"><i class="fa-solid fa-gas-pump text-base text-rose-500"></i><span>Gider <span class="text-slate-400 font-normal">(<span id="count-expenses">0</span>)</span></span></button>
+      <button onclick="switchTab('tab-tables', true)" id="nav-tab-tables" class="tab-btn flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl text-[10px] leading-tight text-slate-600"><i class="fa-solid fa-chart-column text-base text-sky-500"></i><span>Tablolar</span></button>
+      <button onclick="switchTab('tab-cards', true)" id="nav-tab-cards" class="tab-btn flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl text-[10px] leading-tight text-slate-600"><i class="fa-solid fa-credit-card text-base text-violet-500"></i><span>Kartlar</span></button>
+      <button onclick="switchTab('tab-reports', true)" id="nav-tab-reports" class="tab-btn flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl text-[10px] leading-tight text-slate-600"><i class="fa-solid fa-address-book text-base text-indigo-500"></i><span>Cari</span></button>
+      </div>
+    </nav>
 
     <!-- SEKME 1: SATIŞLAR -->
     <div id="tab-sales" class="tab-content space-y-3">
@@ -186,6 +178,7 @@
     <!-- SEKME: DETAYLI TABLOLAR -->
     <div id="tab-tables" class="tab-content space-y-3 hidden">
       <p class="text-[11px] text-slate-500 px-1">Tablolar yukarıdaki tarih filtresine göre hazırlanır (<b id="tbl-period"></b>). Aylık özet her zaman tüm ayları gösterir.</p>
+      <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm"><h3 class="text-xs font-bold text-slate-700 mb-2">📈 Son 6 Ay</h3><div id="chart-monthly"></div></div>
       <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm"><h3 class="text-xs font-bold text-slate-700 mb-2">📅 Aylık Özet</h3><div id="tbl-monthly"></div></div>
       <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm"><h3 class="text-xs font-bold text-slate-700 mb-0.5">🥬 Ürün Bazlı</h3><p class="text-[10px] text-slate-400 mb-2">Tahmini kâr = satılan miktar × (ort. satış − ort. alış). Alış kaydı olmayan ürünlerde gösterilmez.</p><div id="tbl-products"></div></div>
       <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm"><h3 class="text-xs font-bold text-indigo-700 mb-2">👥 Müşteri Bazlı</h3><div id="tbl-customers"></div></div>
@@ -543,8 +536,8 @@
   <script src="js/tables.js"></script>
 
   <!-- Firebase bulut ayarları: küçük ayar simgesinden açılır; yerel kayıtlar korunur. -->
-  <button id="fb-settings-toggle" type="button" aria-label="Bulut ve eşitleme ayarları" aria-controls="firebase-panel" aria-expanded="false" title="Bulut ayarları" style="position:fixed;z-index:100000;right:16px;bottom:calc(18px + env(safe-area-inset-bottom));width:52px;height:52px;border:1px solid #cbd5e1;border-radius:16px;background:#0f172a;color:#fff;box-shadow:0 8px 24px #0f172a35;font:700 25px/1 system-ui,sans-serif;display:flex;align-items:center;justify-content:center;cursor:pointer">⚙</button>
-  <div id="firebase-panel" role="dialog" aria-label="Karacaahmet Tarım bulut ayarları" aria-modal="false" style="display:none;position:fixed;z-index:99999;bottom:calc(82px + env(safe-area-inset-bottom));right:12px;width:min(370px,calc(100vw - 24px));max-height:calc(100dvh - 110px - env(safe-area-inset-top));overflow:auto;background:#fff;border:1px solid #cbd5e1;border-radius:16px;box-shadow:0 12px 35px #0f172a30;padding:14px;font:13px/1.45 system-ui,sans-serif;color:#0f172a">
+  <button id="fb-settings-toggle" type="button" aria-label="Bulut ve eşitleme ayarları" aria-controls="firebase-panel" aria-expanded="false" title="Bulut ayarları" style="position:fixed;z-index:100000;right:16px;bottom:calc(76px + env(safe-area-inset-bottom));width:52px;height:52px;border:1px solid #cbd5e1;border-radius:16px;background:#0f172a;color:#fff;box-shadow:0 8px 24px #0f172a35;font:700 25px/1 system-ui,sans-serif;display:flex;align-items:center;justify-content:center;cursor:pointer">⚙</button>
+  <div id="firebase-panel" role="dialog" aria-label="Karacaahmet Tarım bulut ayarları" aria-modal="false" style="display:none;position:fixed;z-index:99999;bottom:calc(140px + env(safe-area-inset-bottom));right:12px;width:min(370px,calc(100vw - 24px));max-height:calc(100dvh - 110px - env(safe-area-inset-top));overflow:auto;background:#fff;border:1px solid #cbd5e1;border-radius:16px;box-shadow:0 12px 35px #0f172a30;padding:14px;font:13px/1.45 system-ui,sans-serif;color:#0f172a">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><strong>⚙️ Ayarlar · Bulut eşitleme</strong><button type="button" id="fb-minimize" aria-label="Paneli kapat" title="Kapat" style="border:0;background:#f1f5f9;border-radius:10px;width:36px;height:36px;font-size:20px">×</button></div>
     <div id="fb-status" role="status" style="margin:8px 0;color:#475569">Firebase ayarı bekleniyor. Yerel kayıtlar korunuyor.</div>
     <div id="fb-auth-fields" style="display:grid;gap:7px">

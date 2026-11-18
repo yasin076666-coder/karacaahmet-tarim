@@ -9,6 +9,7 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 .custom-modal { display: none; }
+.tab-content { scroll-margin-top: 84px; } /* yapışkan başlığın altında kalmasın */
 .print-only { display: none; }
 @media print {
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }

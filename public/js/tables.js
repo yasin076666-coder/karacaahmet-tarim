@@ -52,6 +52,15 @@
       const row = inp.closest('.item-row');
       const u = row && row.querySelector('.row-unit');
       if (u && x.unit && [...u.options].some(o => o.value === x.unit)) u.value = x.unit;
+      // Fiyat boşsa bu ürünün son fiyatını yaz: satış formunda son satış, alış formunda son alış fiyatı
+      const pr = row && row.querySelector('.row-price');
+      if (pr && !pr.value) {
+        let best = null;
+        (row.closest('#sale-items-container') ? sales : purchases).forEach(r => r.items.forEach(i => {
+          if (fold(i.prod) === fold(x.name) && i.price > 0 && (!best || r.date > best.d)) best = { d: r.date, p: i.price };
+        }));
+        if (best) { pr.value = best.p; pr.dispatchEvent(new Event('input', { bubbles: true })); }
+      }
       hide();
       const q = row && row.querySelector('.row-qty'); if (q) q.focus();
     } else hide();
@@ -119,7 +128,47 @@ function buildMoves() {
   cashMoves.forEach(m => add(m.date, m.amount >= 0 ? 'Kasa Girişi' : 'Kasa Çıkışı', m.note || '', { amt: Math.abs(m.amount) }));
   return r.sort((a, b) => b.date.localeCompare(a.date));
 }
+// Son 6 ayın satışı ve maliyeti (alış + gider), yan yana çubuk; aya dokununca ayrıntı.
+function monthTotals() {
+  const mo = {}, M = k => mo[k] || (mo[k] = { s: 0, c: 0 });
+  sales.forEach(r => { M(r.date.slice(0, 7)).s += r.total; });
+  purchases.forEach(r => { M(r.date.slice(0, 7)).c += r.total; });
+  expenses.forEach(e => expEntries(e).forEach(x => { M(x.date.slice(0, 7)).c += x.amount; }));
+  const t = getTodayString(), y = +t.slice(0, 4), m = +t.slice(5, 7), out = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(y, m - 1 - i, 1), k = d.getFullYear() + '-' + pad(d.getMonth() + 1);
+    out.push({ k, label: MONTHS[d.getMonth()].slice(0, 3), s: round2((mo[k] || {}).s || 0), c: round2((mo[k] || {}).c || 0) });
+  }
+  return out;
+}
+const shortMoney = v => v >= 1e6 ? round2(v / 1e6) + ' mn' : v >= 1e3 ? Math.round(v / 1e3) + ' bin' : String(Math.round(v));
+function buildChart() {
+  const data = monthTotals(), W = 360, H = 170, L = 38, B = 22, T = 8;
+  const max = Math.max(1, ...data.map(d => Math.max(d.s, d.c)));
+  const step = Math.pow(10, Math.floor(Math.log10(max))), top = Math.ceil(max / step) * step; // yuvarlak üst sınır
+  const yy = v => T + (H - T - B) * (1 - v / top), gw = (W - L) / data.length, bw = Math.min(16, gw / 3);
+  let g = '';
+  [0, 0.5, 1].forEach(f => { const v = top * f; g += `<line x1="${L}" x2="${W}" y1="${yy(v)}" y2="${yy(v)}" stroke="#e2e8f0" stroke-width="1"/><text x="${L - 4}" y="${yy(v) + 3}" text-anchor="end" font-size="9" fill="#94a3b8">${shortMoney(v)}</text>`; });
+  data.forEach((d, i) => {
+    const cx = L + gw * i + gw / 2;
+    const bar = (v, x, col) => v > 0 ? `<rect x="${x}" y="${yy(v)}" width="${bw}" height="${Math.max(1, yy(0) - yy(v))}" rx="3" fill="${col}"/>` : '';
+    g += bar(d.s, cx - bw - 1, '#059669') + bar(d.c, cx + 1, '#d97706')
+      + `<text x="${cx}" y="${H - 8}" text-anchor="middle" font-size="10" fill="#64748b">${d.label}</text>`
+      + `<rect x="${cx - gw / 2}" y="0" width="${gw}" height="${H}" fill="transparent" style="cursor:pointer" onclick="chartTip(${i})" onmouseenter="chartTip(${i})"/>`;
+  });
+  window.__chartData = data;
+  return `<div class="flex gap-3 text-[11px] text-slate-600 mb-1"><span class="flex items-center gap-1"><i class="inline-block w-2.5 h-2.5 rounded-sm" style="background:#059669"></i>Satış</span><span class="flex items-center gap-1"><i class="inline-block w-2.5 h-2.5 rounded-sm" style="background:#d97706"></i>Alış + Gider</span></div>`
+    + `<svg viewBox="0 0 ${W} ${H}" class="w-full h-auto" role="img" aria-label="Son 6 ay satış ve maliyet grafiği">${g}</svg>`
+    + `<div id="chart-tip" class="text-[11px] text-slate-700 bg-slate-50 rounded-xl px-2.5 py-1.5 mt-1"></div>`;
+}
+function chartTip(i) {
+  const d = (window.__chartData || [])[i], el = document.getElementById('chart-tip'); if (!d || !el) return;
+  const k = round2(d.s - d.c);
+  el.innerHTML = `<b>${MONTHS[+d.k.slice(5, 7) - 1]} ${d.k.slice(0, 4)}</b> · Satış ${formatMoney(d.s)} · Alış+Gider ${formatMoney(d.c)} · Net kâr <b>${(k >= 0 ? '+' : '−') + formatMoney(Math.abs(k))}</b>`;
+}
 function renderTables() {
+  document.getElementById('chart-monthly').innerHTML = buildChart();
+  chartTip(Math.max(0, window.__chartData.map(d => d.s + d.c > 0).lastIndexOf(true))); // verisi olan son ay
   document.getElementById('tbl-period').textContent = periodLabel();
   document.getElementById('tbl-monthly').innerHTML = buildMonthly();
   document.getElementById('tbl-products').innerHTML = buildProducts();

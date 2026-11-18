@@ -6,7 +6,8 @@ function updateBackupBanner() {
   let last = 0;
   try { last = Number(localStorage.getItem('tp_last_backup') || 0); } catch (e) {}
   const days = last ? (Date.now() - last) / 86400000 : Infinity;
-  if (hasData && days >= 7) {
+  // Bulut eşitlemesi çalışıyorsa veriler zaten iki telefonda ve bulutta: uyarı gereksiz
+  if (hasData && days >= 7 && !window.__ktCloudOk) {
     document.getElementById('backup-banner-text').textContent =
       last ? `Son yedek ${Math.floor(days)} gün önce alındı. Verilerinizi korumak için yedek alın.`
            : 'Henüz yedek almadınız. Tarayıcı verisi silinirse kayıtlar kaybolabilir.';
