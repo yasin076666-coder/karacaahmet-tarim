@@ -1,0 +1,5 @@
+yedek/
+orijinal/
+node_modules/
+.firebase/
+*.log
