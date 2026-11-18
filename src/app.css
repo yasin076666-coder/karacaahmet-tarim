@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.custom-modal { display: none; }
+.print-only { display: none; }
+@media print {
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .print-only { display: block !important; }
+  #stmt-modal > div { max-height: none !important; overflow: visible !important; box-shadow: none !important; max-width: 100% !important; border-radius: 0 !important; }
+  body > *:not(#stmt-modal) { display: none !important; }
+  #stmt-modal { position: static !important; display: block !important; background: #fff !important; }
+  .no-print { display: none !important; }
+}
+.tab-btn.active {
+  background-color: #0f172a;
+  color: #ffffff;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
