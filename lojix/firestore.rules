@@ -1,0 +1,33 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Lojix ekibi (Firebase Auth UID). Yeni kişi eklemek için UID'sini buraya yazıp kuralları yayınlayın.
+    function member() {
+      return request.auth != null && request.auth.uid in [
+        's8DnbccECcQEN8i48fqO5r68yky1',  // azzantalya@gmail.com
+        'kSPDmR5caBhnLXJQTJSVaTiuBcj2',  // bo039598@gmail.com
+        'yBvvM9DhzXaOzq77zh64mwIdF3l2'   // yasin07.6666@gmail.com
+      ];
+    }
+
+    // Ortak filo: her kayıt ayrı belge, fleets/lojix/{tür}/{kayıtId} = { data, updatedAt, updatedBy }
+    match /fleets/{fleet}/{kind}/{docId} {
+      function ok() { return member() && fleet == 'lojix'
+        && kind in ['vehicles', 'clients', 'trips', 'fuels', 'expenses', 'payments', 'companies']; }
+      allow read, delete: if ok();
+      allow create, update: if ok()
+        && request.resource.data.keys().hasOnly(['data', 'updatedAt', 'updatedBy'])
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.data is map
+        && string(request.resource.data.data.id) == docId;
+    }
+
+    // Eski tek belge: geçiş bitene kadar eski sürüm de yazabilir; yeni sürüm yalnızca okur.
+    match /lojix_data/{documentId} {
+      allow read, write: if member();
+    }
+
+    match /{document=**} { allow read, write: if false; }
+  }
+}

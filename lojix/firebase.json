@@ -1,6 +1,13 @@
 {
   "hosting": {
     "public": "public",
-    "trailingSlash": false
-  }
+    "trailingSlash": false,
+    "headers": [
+      { "source": "**/*.@(html|js|css|webmanifest)", "headers": [{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }] },
+      { "source": "/", "headers": [{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }] },
+      { "source": "/sw.js", "headers": [{ "key": "Cache-Control", "value": "no-store" }] }
+    ]
+  },
+  "firestore": { "rules": "firestore.rules" },
+  "emulators": { "auth": { "port": 9099 }, "firestore": { "port": 8080 }, "ui": { "enabled": false }, "singleProjectMode": true }
 }
