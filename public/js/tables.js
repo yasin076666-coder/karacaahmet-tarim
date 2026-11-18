@@ -145,7 +145,7 @@ function exportMovesCsv() {
 
 // Firebase köprüsü: mevcut hesaplama ve kayıt işlevleri değiştirilmeden veri erişimi açılır.
 window.__ktGetData = function () {
-  return { schemaVersion: 1, sales, purchases, expenses, cards, cardPays, cashMoves, biz: getBiz() };
+  return { schemaVersion: 1, sales, purchases, expenses, cards, cardPays, cashMoves, biz: getBiz(), phones: getPhones() };
 };
 window.__ktApplyData = function (d) {
   if (!d || typeof d !== 'object') throw new Error('Bulut verisi geçersiz.');
@@ -163,6 +163,7 @@ window.__ktApplyData = function (d) {
     localStorage.setItem('tp_cardpay', JSON.stringify(cardPays));
     localStorage.setItem('tp_cash', JSON.stringify(cashMoves));
     if (typeof d.biz === 'string') localStorage.setItem('tp_biz', d.biz);
+    if (d.phones && typeof d.phones === 'object') localStorage.setItem('tp_phones', JSON.stringify(d.phones));
   } catch (e) { throw new Error('Bulut verisi alındı fakat bu cihaza kaydedilemedi: ' + e.message); }
   const bizInput = document.getElementById('stmt-biz'); if (bizInput && typeof d.biz === 'string') bizInput.value = d.biz;
   applyFilters(); renderCash(); renderStatement(); updateBackupBanner();

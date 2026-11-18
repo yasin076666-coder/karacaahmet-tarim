@@ -3,3 +3,4 @@ orijinal/
 node_modules/
 .firebase/
 *.log
+*-debug.log

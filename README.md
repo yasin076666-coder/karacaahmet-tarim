@@ -22,6 +22,7 @@ işletme bilgisi `users/{uid}/meta/settings`. Eski tek belge `users/{uid}/appDat
 ## Testler
 ```bash
 npx firebase-tools emulators:start --only auth,firestore   # ayrı terminalde
-node scripts/sync-test.js <tohum.json> <emülatör-uid>     # iki telefonlu eşitleme testi
+node scripts/unit-test.js                                 # yardımcı fonksiyon testleri
+node scripts/sync-test.js <tohum.json> <emülatör-uid>     # iki telefonlu eşitleme + arayüz testi
 ```
 `scripts/migrate.py` eski tek belgeyi kayıt başına belgelere taşır ve doğrular (`--emulator`, `--dry-run`).

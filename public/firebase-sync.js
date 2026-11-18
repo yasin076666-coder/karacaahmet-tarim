@@ -5,7 +5,7 @@
 (function () {
   const $ = id => document.getElementById(id);
   const KINDS = ['sales', 'purchases', 'expenses', 'cards', 'cardPays', 'cashMoves'];
-  const COLLS = KINDS.concat('meta');            // meta/settings = { biz }
+  const COLLS = KINDS.concat('meta');            // meta/settings = { biz, phones }
   const BULK_DELETE_CONFIRM = 10;                // bundan çok silme tek seferde onaysız gitmez
   const status = $('fb-status'), actions = $('fb-cloud-actions'), authFields = $('fb-auth-fields');
   let auth = null, db = null, user = null, unsubs = [], ready = false, busy = false, again = false;
@@ -25,15 +25,15 @@
     if (!window.__ktGetData) throw new Error('Uygulama veri köprüsü bulunamadı.');
     const d = window.__ktGetData(), m = {};
     KINDS.forEach(k => d[k].forEach(r => { m[k + '/' + r.id] = canon(r); }));
-    m['meta/settings'] = canon({ biz: d.biz || '' });
+    m['meta/settings'] = canon({ biz: d.biz || '', phones: d.phones || {} });
     return m;
   }
   // Anahtar->JSON haritasından uygulamanın beklediği veri nesnesi.
   function toAppData(m) {
-    const d = { sales: [], purchases: [], expenses: [], cards: [], cardPays: [], cashMoves: [], biz: '' };
+    const d = { sales: [], purchases: [], expenses: [], cards: [], cardPays: [], cashMoves: [], biz: '', phones: {} };
     Object.keys(m).forEach(key => {
       const [k] = key.split('/'), v = JSON.parse(m[key]);
-      if (k === 'meta') d.biz = typeof v.biz === 'string' ? v.biz : '';
+      if (k === 'meta') { d.biz = typeof v.biz === 'string' ? v.biz : ''; d.phones = v.phones && typeof v.phones === 'object' ? v.phones : {}; }
       else if (d[k]) d[k].push(v);
     });
     KINDS.forEach(k => d[k].sort((a, b) => (b.date || '').localeCompare(a.date || '')));
@@ -180,7 +180,7 @@
       auth.getRedirectResult().catch(e => say('Google yönlendirmesi tamamlanamadı: ' + (e.message || e), 'error'));
       auth.onAuthStateChanged(authChanged);
       // Kaydetme ve işletme bilgisi değişince buluta da gönder.
-      ['saveAll', 'saveBiz'].forEach(name => {
+      ['saveAll', 'saveBiz', 'savePhone'].forEach(name => {
         const orig = window[name];
         if (typeof orig === 'function') window[name] = function () { const r = orig.apply(this, arguments); setTimeout(pushLocal, 0); return r; };
       });

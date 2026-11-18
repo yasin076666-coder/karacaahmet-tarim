@@ -503,6 +503,10 @@
         <button type="button" id="sf-open" onclick="setStmtFilter('open')"></button>
         <button type="button" id="sf-paid" onclick="setStmtFilter('paid')"></button></div></div>
       <input type="text" id="stmt-biz" placeholder="İşletme adınız (ekstrede görünür)" oninput="saveBiz()" class="no-print w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs mb-2">
+      <div id="stmt-contact" class="no-print gap-2 mb-2" style="display:none">
+        <input type="tel" id="stmt-phone" placeholder="Cep telefonu (WhatsApp)" onchange="savePhone()" class="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs">
+        <button type="button" onclick="remindWhatsApp()" class="bg-emerald-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap"><i class="fa-brands fa-whatsapp"></i> Hatırlat</button>
+      </div>
       <div id="stmt-body"></div>
       <div class="no-print flex gap-2 pt-3 text-xs">
         <button type="button" onclick="sharePdf()" class="flex-[2] py-2 text-white bg-indigo-600 rounded-xl font-bold">📄 PDF Paylaş</button>

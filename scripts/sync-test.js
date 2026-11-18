@@ -118,6 +118,23 @@ async function run() {
   check(await denied(() => { const u = firebase.auth().currentUser.uid; return firebase.firestore().doc(`users/${u}/sales/S_X`).set({ ownerUid: u, data: { id: 'BASKA' }, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }); }), 'kimliği tutmayan kayıt reddedildi');
   check(await A2.evaluate(() => firebase.firestore().doc(`users/${firebase.auth().currentUser.uid}/appData/main`).get().then(d => d.exists && d.data().revision === 122)), 'eski belge (rev 122) okunabiliyor ve değişmemiş');
 
+  console.log('10) Gecikme rozetleri ve WhatsApp hatırlatma (A2)');
+  await A2.evaluate(() => switchTab('tab-reports'));
+  const badges = await A2.locator('#all-customers span:has-text(" gün")').count();
+  check(badges > 0, `cari listesinde gecikme rozeti var (${badges} müşteri)`);
+  const idx = await A2.evaluate(() => partyNames.customer.findIndex(n => sales.some(s => s.customer === n && s.total - (s.paid || 0) > 0.005)));
+  await A2.evaluate(i => { window.__opened = []; window.open = u => { window.__opened.push(u); }; openStatement('customer', i); }, idx);
+  check(await A2.locator('#stmt-contact').isVisible(), 'müşteri ekstresinde telefon satırı görünüyor');
+  await A2.fill('#stmt-phone', '0532 123 45 67'); await A2.locator('#stmt-phone').dispatchEvent('change');
+  await A2.locator('#stmt-contact button').click();
+  const url = (await A2.evaluate(() => window.__opened[0])) || '';
+  const want = await A2.evaluate(i => { const n = partyNames.customer[i]; return formatMoney(round2(sales.filter(s => fk(s.customer) === fk(n)).reduce((a, s) => a + s.total - (s.paid || 0), 0))); }, idx);
+  check(url.startsWith('https://wa.me/905321234567?text=') && decodeURIComponent(url).includes(want), `WhatsApp bağlantısı doğru numara ve bakiyeyle açıldı (${want})`);
+  const name = await A2.evaluate(i => fk(partyNames.customer[i]), idx);
+  check(await until(B, async () => (await data(B)).phones[name] === '0532 123 45 67'), 'telefon numarası B’ye eşitlendi');
+  await A2.evaluate(() => { closeModal('stmt-modal'); openStatement('supplier', 0); });
+  check(!(await A2.locator('#stmt-contact').isVisible()), 'tedarikçi ekstresinde telefon satırı yok');
+
   const errs = [...A.errs, ...B.errs, ...A2.errs];
   check(errs.length === 0, 'sayfa hatası yok ' + (errs.length ? JSON.stringify(errs.slice(0, 3)) : ''));
   console.log(fails ? `SONUÇ: ${fails} KONTROL BAŞARISIZ` : 'SONUÇ: TÜM KONTROLLER GEÇTİ');

@@ -113,10 +113,14 @@ function renderExtras(fExp, fSal, fPur) {
 
   const agg = (list, key, kind) => {
     const m = {};
-    list.forEach(r => { const k = r[key].trim().toLowerCase(); const o = m[k] || (m[k] = { name: r[key].trim(), tot: 0, paid: 0 }); o.tot += r.total; o.paid += r.paid || 0; });
+    list.forEach(r => {
+      const k = r[key].trim().toLowerCase(); const o = m[k] || (m[k] = { name: r[key].trim(), tot: 0, paid: 0, old: '' });
+      o.tot += r.total; o.paid += r.paid || 0;
+      if (r.total - (r.paid || 0) > 0.005 && (!o.old || r.date < o.old)) o.old = r.date; // en eski ödenmemiş kayıt
+    });
     const arr = Object.values(m).sort((a, b) => (b.tot - b.paid) - (a.tot - a.paid));
     partyNames[kind] = arr.map(x => x.name);
-    return arr.map((x, i) => `<button onclick="openStatement('${kind}',${i})" class="w-full flex justify-between items-center py-1.5 border-b border-slate-50 text-left gap-2"><span class="font-medium text-slate-700 break-words">${esc(x.name)}</span><span class="font-bold ${x.tot - x.paid > 0.005 ? 'text-indigo-600' : 'text-slate-400'}">${formatMoney(x.tot - x.paid)}</span></button>`).join('') || '<span class="text-slate-400">Kayıt yok</span>';
+    return arr.map((x, i) => `<button onclick="openStatement('${kind}',${i})" class="w-full flex justify-between items-center py-1.5 border-b border-slate-50 text-left gap-2"><span class="font-medium text-slate-700 break-words">${esc(x.name)}${x.old && x.tot - x.paid > 0.005 ? ageBadge(daysSince(x.old)) : ''}</span><span class="font-bold ${x.tot - x.paid > 0.005 ? 'text-indigo-600' : 'text-slate-400'}">${formatMoney(x.tot - x.paid)}</span></button>`).join('') || '<span class="text-slate-400">Kayıt yok</span>';
   };
   document.getElementById('all-customers').innerHTML = agg(sales, 'customer', 'customer');
   document.getElementById('all-suppliers').innerHTML = agg(purchases, 'supplier', 'supplier');
@@ -152,6 +156,8 @@ function openStatement(kind, ref) {
   stmtCtx = { kind, ref };
   stmtFilter = 'all';
   document.getElementById('stmt-biz').value = getBiz();
+  document.getElementById('stmt-contact').style.display = kind === 'customer' ? 'flex' : 'none';
+  if (kind === 'customer') document.getElementById('stmt-phone').value = getPhones()[fk(partyNames.customer[ref] || '')] || '';
   document.getElementById('stmt-start').value = '';
   document.getElementById('stmt-end').value = '';
   renderStatement();
@@ -358,6 +364,23 @@ function stLine(r) {
 }
 function itemsHtml(items) {
   return '<div class="mt-1 space-y-0.5">' + items.map(i => `<div class="flex justify-between gap-2"><span>${esc(i.prod)} <span class="text-slate-400">${esc(i.qty)} ${esc(i.unit)} × ${formatMoney(i.price)}</span></span><span class="font-semibold text-slate-600 whitespace-nowrap">${formatMoney(i.total || round2(i.qty * i.price))}</span></div>`).join('') + '</div>';
+}
+const ageBadge = n => `<span class="ml-1 text-[10px] font-semibold ${n > 30 ? 'text-rose-600' : n > 14 ? 'text-amber-600' : 'text-slate-400'}">${n} gün</span>`;
+function getPhones() { try { return JSON.parse(localStorage.getItem('tp_phones') || '{}') || {}; } catch (e) { return {}; } }
+function savePhone() {
+  const name = stmtCtx && partyNames.customer[stmtCtx.ref]; if (!name) return;
+  const p = getPhones(), v = document.getElementById('stmt-phone').value.trim();
+  if (v) p[fk(name)] = v; else delete p[fk(name)];
+  try { localStorage.setItem('tp_phones', JSON.stringify(p)); } catch (e) {}
+}
+function remindWhatsApp() {
+  const name = stmtCtx && partyNames.customer[stmtCtx.ref], num = waPhone(document.getElementById('stmt-phone').value);
+  if (!name) return;
+  if (!num) return alert('Geçerli bir cep telefonu girin (örn. 0532 123 45 67).');
+  // Ekstre filtrelerinden bağımsız, tüm zamanların kalan bakiyesi
+  const bal = round2(sales.filter(s => fk(s.customer) === fk(name)).reduce((a, s) => a + s.total - (s.paid || 0), 0));
+  const msg = `Merhaba ${name}, ${getBiz() || 'Karacaahmet Tarım'} olarak hatırlatmak isteriz: ${formatDate(getTodayString())} itibarıyla güncel bakiyeniz ${formatMoney(bal)}. İyi çalışmalar.`;
+  window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(msg), '_blank');
 }
 function getBiz() { try { return localStorage.getItem('tp_biz') || ''; } catch (e) { return ''; } }
 function saveBiz() {
