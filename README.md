@@ -16,7 +16,7 @@ npm run deploy      # CSS'i üret ve yayınla
 ```
 
 ## Veri yapısı
-Her kayıt ayrı Firestore belgesi: `users/{uid}/{sales|purchases|expenses|cards|cardPays|cashMoves}/{kayıtId}`,
+Her kayıt ayrı Firestore belgesi: `users/{uid}/{sales|purchases|expenses|cards|cardPays|cashMoves|wastes}/{kayıtId}`,
 işletme bilgisi `users/{uid}/meta/settings`. Eski tek belge `users/{uid}/appData/main` salt okunur yedek olarak durur.
 
 ## Testler
@@ -24,6 +24,7 @@ işletme bilgisi `users/{uid}/meta/settings`. Eski tek belge `users/{uid}/appDat
 npx firebase-tools emulators:start --only auth,firestore   # ayrı terminalde
 node scripts/unit-test.js                                 # yardımcı fonksiyon testleri
 node scripts/ui-test.js public <tohum.json>               # son fiyat, grafik, internetsiz açılış
+node scripts/stock-test.js public <tohum.json>            # fire ve otomatik birim
 node scripts/sync-test.js <tohum.json> <emülatör-uid>     # iki telefonlu eşitleme + arayüz testi
 ```
 `scripts/migrate.py` eski tek belgeyi kayıt başına belgelere taşır ve doğrular (`--emulator`, `--dry-run`).

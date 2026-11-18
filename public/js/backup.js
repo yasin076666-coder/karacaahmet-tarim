@@ -18,7 +18,7 @@ function updateBackupBanner() {
 }
 
 function exportData() {
-  const backup = { version: 2, exportedAt: new Date().toISOString(), sales, purchases, expenses, cards, cardPays, cashMoves };
+  const backup = { version: 2, exportedAt: new Date().toISOString(), sales, purchases, expenses, cards, cardPays, cashMoves, wastes };
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const dl = document.createElement('a');
@@ -48,6 +48,7 @@ function importData(event) {
         cards = normList(imported.cards, normCard);
         cardPays = normList(imported.cardPays, normCardPay);
         cashMoves = normList(imported.cashMoves, normMove);
+        wastes = normList(imported.wastes, normWaste);
         saveAll();
         applyFilters();
         alert('Yedek başarıyla yüklendi!');

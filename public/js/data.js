@@ -107,6 +107,10 @@ function normCard(c) {
 function normCardPay(x) {
   return { id: safeId(x.id, 'CP'), cardId: String(x.cardId || '').replace(/[^\w-]/g, ''), date: validDate(x.date), amount: num(x.amount), note: String(x.note || '') };
 }
+// Fire: qty stoktan düşen miktar (sayımda fazla çıkarsa eksi olabilir)
+function normWaste(x) {
+  return { id: safeId(x.id, 'W'), date: validDate(x.date), prod: String(x.prod || '').trim(), unit: String(x.unit || 'kg'), qty: num(x.qty), note: String(x.note || '') };
+}
 // Toplam ödenen tutarı hedefe getir (fark, tarihli bir hareket olarak yazılır)
 function setPaidTo(rec, target, date, note) {
   const diff = round2(target - sumPay(rec.payments));
@@ -116,6 +120,7 @@ function setPaidTo(rec, target, date, note) {
 let cards = normList(safeLoad('tp_cards'), normCard);
 let cardPays = normList(safeLoad('tp_cardpay'), normCardPay);
 let cashMoves = normList(safeLoad('tp_cash'), normMove);
+let wastes = normList(safeLoad('tp_wastes'), normWaste); // fire ve sayım düzeltmeleri
 
 // ================= DURUM =================
 let sales = normList(safeLoad('tp_sales'), normSale);
@@ -146,6 +151,7 @@ function saveAll() {
     localStorage.setItem('tp_cards', JSON.stringify(cards));
     localStorage.setItem('tp_cardpay', JSON.stringify(cardPays));
     localStorage.setItem('tp_cash', JSON.stringify(cashMoves));
+    localStorage.setItem('tp_wastes', JSON.stringify(wastes));
   } catch (e) {
     alert('Veriler cihaza kaydedilemedi (depolama dolu veya kapalı olabilir). Lütfen hemen yedek alın.');
   }

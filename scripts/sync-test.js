@@ -135,6 +135,12 @@ async function run() {
   await A2.evaluate(() => { closeModal('stmt-modal'); openStatement('supplier', 0); });
   check(!(await A2.locator('#stmt-contact').isVisible()), 'tedarikçi ekstresinde telefon satırı yok');
 
+  console.log('11) Fire kaydı eşitlenir');
+  await A2.evaluate(() => { closeModal('stmt-modal'); openWasteModal(); });
+  await A2.fill('#waste-prod', 'Maydanoz'); await A2.locator('#waste-prod').dispatchEvent('input'); await A2.fill('#waste-qty', '3');
+  await A2.evaluate(() => saveWaste());
+  check(await until(B, async () => (await data(B)).wastes.some(w => w.prod === 'Maydanoz' && w.qty === 3 && w.unit === 'adet')), 'fire kaydı (3 adet maydanoz) B’ye ulaştı');
+
   const errs = [...A.errs, ...B.errs, ...A2.errs];
   check(errs.length === 0, 'sayfa hatası yok ' + (errs.length ? JSON.stringify(errs.slice(0, 3)) : ''));
   console.log(fails ? `SONUÇ: ${fails} KONTROL BAŞARISIZ` : 'SONUÇ: TÜM KONTROLLER GEÇTİ');

@@ -4,7 +4,7 @@
    böylece çevrimdışı eklenen kayıt yüklenir, öbür telefonda silinen kayıt burada da silinir. */
 (function () {
   const $ = id => document.getElementById(id);
-  const KINDS = ['sales', 'purchases', 'expenses', 'cards', 'cardPays', 'cashMoves'];
+  const KINDS = ['sales', 'purchases', 'expenses', 'cards', 'cardPays', 'cashMoves', 'wastes'];
   const COLLS = KINDS.concat('meta');            // meta/settings = { biz, phones }
   const BULK_DELETE_CONFIRM = 10;                // bundan çok silme tek seferde onaysız gitmez
   const status = $('fb-status'), actions = $('fb-cloud-actions'), authFields = $('fb-auth-fields');
@@ -30,7 +30,7 @@
   }
   // Anahtar->JSON haritasından uygulamanın beklediği veri nesnesi.
   function toAppData(m) {
-    const d = { sales: [], purchases: [], expenses: [], cards: [], cardPays: [], cashMoves: [], biz: '', phones: {} };
+    const d = { sales: [], purchases: [], expenses: [], cards: [], cardPays: [], cashMoves: [], wastes: [], biz: '', phones: {} };
     Object.keys(m).forEach(key => {
       const [k] = key.split('/'), v = JSON.parse(m[key]);
       if (k === 'meta') { d.biz = typeof v.biz === 'string' ? v.biz : ''; d.phones = v.phones && typeof v.phones === 'object' ? v.phones : {}; }

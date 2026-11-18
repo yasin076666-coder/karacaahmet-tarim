@@ -179,6 +179,13 @@
     <div id="tab-tables" class="tab-content space-y-3 hidden">
       <p class="text-[11px] text-slate-500 px-1">Tablolar yukarıdaki tarih filtresine göre hazırlanır (<b id="tbl-period"></b>). Aylık özet her zaman tüm ayları gösterir.</p>
       <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm"><h3 class="text-xs font-bold text-slate-700 mb-2">📈 Son 6 Ay</h3><div id="chart-monthly"></div></div>
+      <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm">
+        <div class="flex justify-between items-center gap-2 mb-1"><h3 class="text-xs font-bold text-slate-700">🗑️ Fire</h3>
+          <div class="flex gap-1.5"><button onclick="openWasteModal()" class="bg-rose-600 text-white px-2.5 py-1.5 rounded-xl text-[11px] font-bold">Fire Ekle</button></div></div>
+        <p class="text-[10px] text-slate-400 mb-2">Seçili döneme göre. Değer: alınan üründe ortalama alış fiyatı, kendi ürününüzde ortalama satış fiyatı.</p>
+        <div id="tbl-stock"></div>
+        <div class="text-[11px] font-bold text-slate-600 mt-3 mb-1">Son fire kayıtları</div><div id="waste-list" class="text-[11px]"></div>
+      </div>
       <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm"><h3 class="text-xs font-bold text-slate-700 mb-2">📅 Aylık Özet</h3><div id="tbl-monthly"></div></div>
       <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm"><h3 class="text-xs font-bold text-slate-700 mb-0.5">🥬 Ürün Bazlı</h3><p class="text-[10px] text-slate-400 mb-2">Tahmini kâr = satılan miktar × (ort. satış − ort. alış). Alış kaydı olmayan ürünlerde gösterilmez.</p><div id="tbl-products"></div></div>
       <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm"><h3 class="text-xs font-bold text-indigo-700 mb-2">👥 Müşteri Bazlı</h3><div id="tbl-customers"></div></div>
@@ -526,6 +533,25 @@
     </div>
   </div>
 
+  <div id="waste-modal" class="custom-modal fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-3 text-xs">
+      <h3 class="font-bold text-sm text-slate-800">🗑️ Fire Ekle</h3>
+      <div><label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Ürün</label>
+        <div class="flex gap-2"><input type="text" id="waste-prod" placeholder="Örn: Kıvırcık" class="row-prod flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs">
+        <select id="waste-unit" class="w-20 bg-slate-50 border border-slate-200 rounded-xl px-1 text-xs"></select></div></div>
+      <div><label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Atılan / bozulan miktar</label>
+        <input type="number" step="any" min="0" id="waste-qty" placeholder="0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs text-sm font-bold"></div>
+      <div><label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Tarih</label>
+        <input type="date" id="waste-date" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs"></div>
+      <div><label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Not (isteğe bağlı)</label>
+        <input type="text" id="waste-note" placeholder="Örn: Ezilmiş, sararmış" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs"></div>
+      <div class="flex gap-2 pt-1">
+        <button type="button" onclick="closeModal('waste-modal')" class="w-1/2 py-2 text-slate-600 bg-slate-100 rounded-xl font-medium">Vazgeç</button>
+        <button type="button" onclick="saveWaste()" class="w-1/2 py-2 text-white bg-slate-900 rounded-xl font-bold">Kaydet</button>
+      </div>
+    </div>
+  </div>
+
   <script src="js/util.js"></script>
   <script src="js/data.js"></script>
   <script src="js/forms.js"></script>
@@ -534,6 +560,7 @@
   <script src="js/cards.js"></script>
   <script src="js/cash.js"></script>
   <script src="js/tables.js"></script>
+  <script src="js/stock.js"></script>
 
   <!-- Firebase bulut ayarları: küçük ayar simgesinden açılır; yerel kayıtlar korunur. -->
   <button id="fb-settings-toggle" type="button" aria-label="Bulut ve eşitleme ayarları" aria-controls="firebase-panel" aria-expanded="false" title="Bulut ayarları" style="position:fixed;z-index:100000;right:16px;bottom:calc(76px + env(safe-area-inset-bottom));width:52px;height:52px;border:1px solid #cbd5e1;border-radius:16px;background:#0f172a;color:#fff;box-shadow:0 8px 24px #0f172a35;font:700 25px/1 system-ui,sans-serif;display:flex;align-items:center;justify-content:center;cursor:pointer">⚙</button>

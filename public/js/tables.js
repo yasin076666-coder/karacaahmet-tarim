@@ -62,6 +62,7 @@
         if (best) { pr.value = best.p; pr.dispatchEvent(new Event('input', { bubbles: true })); }
       }
       hide();
+      inp.dispatchEvent(new Event('input', { bubbles: true })); // birim otomatik seçilsin (fire penceresi dahil)
       const q = row && row.querySelector('.row-qty'); if (q) q.focus();
     } else hide();
   });
@@ -171,6 +172,7 @@ function renderTables() {
   chartTip(Math.max(0, window.__chartData.map(d => d.s + d.c > 0).lastIndexOf(true))); // verisi olan son ay
   document.getElementById('tbl-period').textContent = periodLabel();
   document.getElementById('tbl-monthly').innerHTML = buildMonthly();
+  renderStock();
   document.getElementById('tbl-products').innerHTML = buildProducts();
   document.getElementById('tbl-customers').innerHTML = buildParties(sales, 'customer', 'customer');
   document.getElementById('tbl-suppliers').innerHTML = buildParties(purchases, 'supplier', 'supplier');
@@ -194,7 +196,7 @@ function exportMovesCsv() {
 
 // Firebase köprüsü: mevcut hesaplama ve kayıt işlevleri değiştirilmeden veri erişimi açılır.
 window.__ktGetData = function () {
-  return { schemaVersion: 1, sales, purchases, expenses, cards, cardPays, cashMoves, biz: getBiz(), phones: getPhones() };
+  return { schemaVersion: 1, sales, purchases, expenses, cards, cardPays, cashMoves, wastes, biz: getBiz(), phones: getPhones() };
 };
 window.__ktApplyData = function (d) {
   if (!d || typeof d !== 'object') throw new Error('Bulut verisi geçersiz.');
@@ -204,6 +206,7 @@ window.__ktApplyData = function (d) {
   cards = normList(d.cards, normCard);
   cardPays = normList(d.cardPays, normCardPay);
   cashMoves = normList(d.cashMoves, normMove);
+  wastes = normList(d.wastes, normWaste);
   try {
     localStorage.setItem('tp_sales', JSON.stringify(sales));
     localStorage.setItem('tp_purchases', JSON.stringify(purchases));
@@ -211,6 +214,7 @@ window.__ktApplyData = function (d) {
     localStorage.setItem('tp_cards', JSON.stringify(cards));
     localStorage.setItem('tp_cardpay', JSON.stringify(cardPays));
     localStorage.setItem('tp_cash', JSON.stringify(cashMoves));
+    localStorage.setItem('tp_wastes', JSON.stringify(wastes));
     if (typeof d.biz === 'string') localStorage.setItem('tp_biz', d.biz);
     if (d.phones && typeof d.phones === 'object') localStorage.setItem('tp_phones', JSON.stringify(d.phones));
   } catch (e) { throw new Error('Bulut verisi alındı fakat bu cihaza kaydedilemedi: ' + e.message); }
