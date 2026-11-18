@@ -8,6 +8,12 @@ function lastUnit(prod) {
   wastes.forEach(w => see(w.prod, w.unit, w.date));
   return best ? best.u : '';
 }
+// Ürünün listedeki (satış ya da alış) en son fiyatı; yoksa 0.
+function lastPrice(prod, list) {
+  const k = fk(prod); let best = null;
+  list.forEach(r => r.items.forEach(i => { if (fk(i.prod) === k && i.price > 0 && (!best || r.date > best.d)) best = { d: r.date, p: i.price }; }));
+  return best ? best.p : 0;
+}
 // Kalemde ürün adı yazılınca birimi o ürünün son birimine getir (kıvırcık adet, lahana kg).
 document.addEventListener('input', e => {
   const inp = e.target;

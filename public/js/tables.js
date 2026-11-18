@@ -54,13 +54,8 @@
       if (u && x.unit && [...u.options].some(o => o.value === x.unit)) u.value = x.unit;
       // Fiyat boşsa bu ürünün son fiyatını yaz: satış formunda son satış, alış formunda son alış fiyatı
       const pr = row && row.querySelector('.row-price');
-      if (pr && !pr.value) {
-        let best = null;
-        (row.closest('#sale-items-container') ? sales : purchases).forEach(r => r.items.forEach(i => {
-          if (fold(i.prod) === fold(x.name) && i.price > 0 && (!best || r.date > best.d)) best = { d: r.date, p: i.price };
-        }));
-        if (best) { pr.value = best.p; pr.dispatchEvent(new Event('input', { bubbles: true })); }
-      }
+      const p = pr && !pr.value && lastPrice(x.name, row.closest('#sale-items-container') ? sales : purchases);
+      if (p) { pr.value = p; pr.dispatchEvent(new Event('input', { bubbles: true })); }
       hide();
       inp.dispatchEvent(new Event('input', { bubbles: true })); // birim otomatik seçilsin (fire penceresi dahil)
       const q = row && row.querySelector('.row-qty'); if (q) q.focus();

@@ -20,3 +20,42 @@ assert.strictEqual(ctx.daysSince('2026-11-20'), 0);
 assert.strictEqual(ctx.daysSince('2026-10-21'), 30);
 assert.strictEqual(ctx.daysSince('2026-03-29'), 236); // yaz saati geçişini kapsar
 console.log('Birim testleri geçti.');
+
+// ---- Asistan ayrıştırıcısı ----
+const actx = {};
+vm.createContext(actx);
+vm.runInContext(fs.readFileSync(path.join(__dirname, '../public/js/assistant.js'), 'utf8') + '\nthis.parseCommand = parseCommand;', actx);
+const C = { today: '2026-11-20', customers: ['Halil kardeşi', 'Halil', 'Kor ateş', 'Latif', 'Fatoş'], suppliers: ['Hal', 'Mehmet'], products: ['Kıvırcık', 'Lahana', 'Kara lahana', 'Maydanoz', 'Düz marul'] };
+const P = t => JSON.parse(JSON.stringify(actx.parseCommand(t, C)));
+const I = (prod, qty, unit, price) => ({ prod, qty, unit, price });
+const cases = [
+  ["Halil'e 20 adet kıvırcık 25 liradan sattım, 200 peşin aldım", { type: 'sale', party: 'Halil', items: [I('Kıvırcık', 20, 'adet', 25)], paid: 200 }],
+  ["Halil kardeşi'ne 10 kilo lahana 15'ten sattım", { type: 'sale', party: 'Halil kardeşi', items: [I('Lahana', 10, 'kg', 15)], paid: 0 }],
+  ['Kor ateşe yirmi beş adet maydanoz tanesi 5 lira sattım peşin', { type: 'sale', party: 'Kor ateş', items: [I('Maydanoz', 25, 'adet', 5)], paid: 'full' }],
+  ["Latif'e 30 kıvırcık 20 ve 5 kilo kara lahana 18 sattım veresiye", { type: 'sale', party: 'Latif', items: [I('Kıvırcık', 30, '', 20), I('Kara lahana', 5, 'kg', 18)], paid: 0 }],
+  ["Mehmet'ten 40 kasa kıvırcık 22 liradan aldım, 500 ödedim", { type: 'purchase', party: 'Mehmet', items: [I('Kıvırcık', 40, 'kasa', 22)], paid: 500 }],
+  ["Halden 30 kasa düz marul 18'den aldım", { type: 'purchase', party: 'Hal', items: [I('Düz marul', 30, 'kasa', 18)], paid: 0 }],
+  ['500 lira mazot', { type: 'expense', amount: 500, category: 'Mazot / Yakıt', card: false, date: '2026-11-20' }],
+  ['dün yemek 250 lira kartla', { type: 'expense', amount: 250, category: 'Yemek / Çay', card: true, date: '2026-11-19' }],
+  ['1.500 lira kira ödedim', { type: 'expense', amount: 1500, category: 'Kira' }],
+  ['Halil 1000 lira ödedi', { type: 'collect', party: 'Halil', amount: 1000 }],
+  ["Fatoş'tan 300 tahsil ettim", { type: 'collect', party: 'Fatoş', amount: 300 }],
+  ["Mehmet'e 2000 lira ödedim", { type: 'pay', party: 'Mehmet', amount: 2000 }],
+  ['Ahmet 15 adet kıvırcık 25 sattım', { type: 'sale', party: 'Ahmet', items: [I('Kıvırcık', 15, 'adet', 25)] }],
+  ["bir kasa kıvırcık iki yüz liraya sattım Latif'e", { type: 'sale', party: 'Latif', items: [I('Kıvırcık', 1, 'kasa', 200)] }],
+  ["Halil'e 20 kıvırcık sattım", { type: 'sale', party: 'Halil', items: [I('Kıvırcık', 20, '', 0)] }],
+  ['dün Halil kardeşine iki buçuk kilo lahana 30 liradan sattım', { type: 'sale', party: 'Halil kardeşi', date: '2026-11-19', items: [I('Lahana', 2.5, 'kg', 30)] }],
+  ['Bugün ne kadar sattım?', { type: 'report', period: 'today', metric: 'sales', party: null }],
+  ['Bu ay kâr ne kadar', { type: 'report', period: 'month', metric: 'profit' }],
+  ["Halil'in borcu ne kadar", { type: 'report', metric: 'balance', party: { name: 'Halil', kind: 'customer' } }],
+  ['Kasada ne kadar var', { type: 'report', metric: 'cash' }],
+  ['Bu hafta en çok ne sattım', { type: 'report', period: 'week', metric: 'top' }],
+  ['merhaba', { type: 'unknown' }],
+];
+let bad = 0;
+for (const [text, want] of cases) {
+  const got = P(text), diff = Object.keys(want).filter(k => JSON.stringify(got[k]) !== JSON.stringify(want[k]));
+  if (diff.length) { bad++; console.log('✘', JSON.stringify(text), '\n   beklenen', JSON.stringify(want), '\n   bulunan ', JSON.stringify(got)); }
+}
+assert.strictEqual(bad, 0, `${bad} asistan cümlesi yanlış anlaşıldı`);
+console.log(`Asistan: ${cases.length} cümlenin hepsi doğru anlaşıldı.`);
