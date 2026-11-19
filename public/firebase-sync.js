@@ -40,22 +40,75 @@
     return d;
   }
   function loadBase(uid) { try { const s = JSON.parse(localStorage.getItem('tp_synced') || '{}'); return s.uid === uid && s.map ? s.map : {}; } catch (e) { return {}; } }
-  function saveBase() { try { localStorage.setItem('tp_synced', JSON.stringify({ uid: user.uid, map: base })); } catch (e) {} }
+  let baseWarned = false;
+  function saveBase() {
+    try { localStorage.setItem('tp_synced', JSON.stringify({ uid: user.uid, map: base })); }
+    catch (e) { if (!baseWarned) { baseWarned = true; alert('Telefon belleği dolu: eşitleme bilgisi kaydedilemedi. Lütfen "Yedek Al" ile yedek alın ve eski kayıtları arşivleyin.'); } }
+  }
   function ref(key) { const [k, id] = key.split('/'); return db.collection('users').doc(user.uid).collection(k).doc(id); }
   function count(m) { const c = {}; Object.keys(m).forEach(k => { const t = k.split('/')[0]; c[t] = (c[t] || 0) + 1; }); return `Satış ${c.sales || 0}, alış ${c.purchases || 0}, gider ${c.expenses || 0}`; }
 
-  // Yazma listesini en fazla 450'lik toplu işlemlerle gönderir. ops: [{key, json|null}]
+  // Üç yönlü alan birleştirme: değişen taraf kazanır; kimlikli diziler (tahsilatlar) öğe öğe birleşir.
+  const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
+  function merge3(L, S, B) {
+    B = isObj(B) ? B : {};
+    const out = {};
+    new Set([...Object.keys(L), ...Object.keys(S)]).forEach(k => {
+      const l = L[k], s = S[k], b = B[k];
+      let v;
+      if (canon(l) === canon(s)) v = l;
+      else if (isObj(l) && isObj(s)) v = merge3(l, s, b);
+      else if (Array.isArray(l) && Array.isArray(s) && [...l, ...s].every(x => isObj(x) && x.id)) v = mergeById(l, s, Array.isArray(b) ? b : []);
+      else v = canon(l) !== canon(b) ? l : s;
+      if (v !== undefined) out[k] = v;
+    });
+    return out;
+  }
+  function mergeById(l, s, b) {
+    const M = a => new Map(a.map(x => [x.id, x])), Lm = M(l), Sm = M(s), Bm = M(b);
+    return [...new Set([...Lm.keys(), ...Sm.keys()])]
+      .filter(id => !(Bm.has(id) && (!Lm.has(id) || !Sm.has(id))))   // bir tarafta silinmiş
+      .map(id => { const x = Lm.get(id), y = Sm.get(id); return !x ? y : !y ? x : canon(x) !== canon(Bm.get(id)) ? x : y; });
+  }
+  // meta: hiç eşitlenmemiş tarafta boş alanlar dolu olanı ezmez, telefonlar birleşir
+  function mergeRec(key, L, S, B) {
+    if (key === 'meta/settings' && !B) return { biz: L.biz || S.biz || '', phones: Object.assign({}, S.phones, L.phones) };
+    const m = merge3(L, S, B);
+    if (Array.isArray(m.payments)) m.paid = Math.round(m.payments.reduce((a, p) => a + (+p.amount || 0), 0) * 100) / 100;
+    return m;
+  }
+
+  // Yazmadan önce buluttaki güncel hâli okur (işlem): arada öbür telefon değiştirdiyse birleştirip yazar.
+  // ops: [{key, json|null}]. İnternet yoksa hata verir; kayıt cihazda kalır, bağlantı gelince yeniden denenir.
   async function commit(ops) {
-    for (let i = 0; i < ops.length; i += 450) {
-      const batch = db.batch();
-      ops.slice(i, i + 450).forEach(o => {
-        if (o.json === null) batch.delete(ref(o.key));
-        else batch.set(ref(o.key), { ownerUid: user.uid, data: JSON.parse(o.json), updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    const fixLocal = {};
+    for (let i = 0; i < ops.length; i += 200) {
+      const chunk = ops.slice(i, i + 200);
+      const out = await db.runTransaction(async tx => {
+        const snaps = await Promise.all(chunk.map(o => tx.get(ref(o.key))));
+        return chunk.map((o, j) => {
+          const d = snaps[j].exists ? snaps[j].data() : null, S = d && isObj(d.data) ? canon(d.data) : undefined, B = base[o.key];
+          let json = o.json;
+          if (S !== B && S !== json) {
+            if (json === null) json = S === undefined ? null : S;           // biz sildik, öbürü düzenledi: onunki kalır
+            else if (S !== undefined) json = canon(mergeRec(o.key, JSON.parse(json), JSON.parse(S), B === undefined ? null : JSON.parse(B)));
+          }
+          if (json === null) { if (snaps[j].exists) tx.delete(ref(o.key)); }
+          else if (json !== S) tx.set(ref(o.key), { ownerUid: user.uid, data: JSON.parse(json), updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+          return { key: o.key, json, mine: o.json };
+        });
       });
-      await batch.commit();
-      ops.slice(i, i + 450).forEach(o => { if (o.json === null) delete base[o.key]; else base[o.key] = o.json; });
+      out.forEach(r => { if (r.json === null) delete base[r.key]; else base[r.key] = r.json; if (r.json !== r.mine) fixLocal[r.key] = r.json; });
       saveBase();
     }
+    if (Object.keys(fixLocal).length) {               // birleşen hâli cihaza da yaz
+      const m = localMap();
+      Object.keys(fixLocal).forEach(k => { if (fixLocal[k] === null) delete m[k]; else m[k] = fixLocal[k]; });
+      window.__ktApplyData(toAppData(m));
+      say('Öbür telefonda aynı anda yapılan değişiklikle birleştirildi.', 'ok');
+      return true;
+    }
+    return false;
   }
   function confirmDeletes(ops) {
     const n = ops.filter(o => o.json === null).length;
@@ -65,10 +118,14 @@
   // İlk açılış: yerel, sunucu ve taban üçlü birleştirilir.
   async function initialMerge() {
     const local = localMap(), keys = new Set([...Object.keys(local), ...Object.keys(remote), ...Object.keys(base)]);
-    const merged = {}, ops = [];
+    const merged = {}, ops = [], orphans = [], fresh = !Object.keys(base).length; // fresh: bu cihaz hiç eşitlenmemiş
     keys.forEach(k => {
       const L = local[k], S = remote[k], B = base[k];
       if (L === S) { if (L !== undefined) merged[k] = L; return; }
+      if (k === 'meta/settings' && L !== undefined && S !== undefined) {
+        const m = canon(mergeRec(k, JSON.parse(L), JSON.parse(S), B === undefined ? null : JSON.parse(B)));
+        merged[k] = m; if (m !== S) ops.push({ key: k, json: m }); return;
+      }
       if (L === undefined) {                       // cihazda yok
         if (B === undefined || S !== B) merged[k] = S;   // sunucuda yeni / değişmiş: al
         else ops.push({ key: k, json: null });           // bu cihazda silinmiş: buluttan sil
@@ -76,12 +133,19 @@
       }
       if (S === undefined) {                       // bulutta yok
         if (B !== undefined && L === B) return;          // öbür cihazda silinmiş: burada da sil
-        merged[k] = L; ops.push({ key: k, json: L });    // yeni ya da çevrimdışı düzenlenmiş: yükle
+        merged[k] = L;
+        if (fresh) orphans.push(k); else ops.push({ key: k, json: L }); // yeni ya da çevrimdışı düzenlenmiş: yükle
         return;
       }
-      if (L === B) merged[k] = S;                  // yalnızca bulut değişmiş
-      else { merged[k] = L; ops.push({ key: k, json: L }); } // cihazda değişmiş: cihazdaki kazanır
+      if (fresh || L === B) merged[k] = S;         // yalnızca bulut değişmiş ya da cihaz hiç eşitlenmemiş: bulut esas
+      else if (S === B) { merged[k] = L; ops.push({ key: k, json: L }); } // yalnızca cihazda değişmiş
+      else { const m = canon(mergeRec(k, JSON.parse(L), JSON.parse(S), JSON.parse(B))); merged[k] = m; ops.push({ key: k, json: m }); } // iki tarafta da değişmiş
     });
+    if (orphans.length) {                          // hiç eşitlenmemiş cihazda bulutta olmayan kayıtlar
+      if (window.confirm(`Bu telefonda bulutta olmayan ${orphans.length} kayıt var. Öbür telefonda silinmiş ya da bu telefonda internetsiz girilmiş olabilirler. Buluta eklensin mi? (Hayır derseniz bu telefondan kaldırılır.)`))
+        orphans.forEach(k => ops.push({ key: k, json: local[k] }));
+      else orphans.forEach(k => { delete merged[k]; });
+    }
     // Taban = buluttaki hâl: gönderilemeyen yükleme/silme bir sonraki kayıtta kendiliğinden yeniden denenir.
     base = Object.assign({}, remote); saveBase();
     if (ops.length && !confirmDeletes(ops)) {   // silme reddedildi: kayıtlar cihaza geri gelir
@@ -133,6 +197,7 @@
       remote[key] = canon(d.data);
     });
     if (!ready || snap.metadata.hasPendingWrites) return;
+    if (!snap.metadata.fromCache) setTimeout(pushLocal, 0); // bağlantı geri geldiyse bekleyen değişiklikleri gönder
     const local = localMap(), next = Object.assign({}, local);
     const keys = new Set([...Object.keys(remote).filter(k => k.startsWith(coll + '/')), ...Object.keys(base).filter(k => k.startsWith(coll + '/'))]);
     keys.forEach(k => {
@@ -155,10 +220,15 @@
     say('Bulut kayıtları okunuyor…');
     COLLS.forEach(coll => {
       let first = true;
-      unsubs.push(db.collection('users').doc(user.uid).collection(coll).onSnapshot(snap => {
+      // Önbellekten gelen (internetsiz) cevap bulutun gerçek içeriği değildir: sunucu cevabı gelene kadar birleştirme yapılmaz.
+      unsubs.push(db.collection('users').doc(user.uid).collection(coll).onSnapshot({ includeMetadataChanges: true }, snap => {
         onRemote(coll, snap);
-        if (first) { first = false; if (--pending === 0) initialMerge().catch(e => say('Bulut birleştirilemedi; cihazdaki kayıtlar korunuyor: ' + (e.message || e), 'error')); }
-      }, err => say('Canlı bulut bağlantısı kesildi; cihazdaki kayıtlar korunuyor: ' + err.message, 'error')));
+        if (first && snap.metadata.fromCache && !ready) say('Bulut bağlantısı bekleniyor; cihazdaki kayıtlarla çalışılıyor.');
+        if (first && !snap.metadata.fromCache) { first = false; if (--pending === 0) initialMerge().catch(e => say('Bulut birleştirilemedi; cihazdaki kayıtlar korunuyor: ' + (e.message || e), 'error')); }
+      }, err => {
+        say('Canlı bulut bağlantısı kesildi; cihazdaki kayıtlar korunuyor: ' + err.message, 'error');
+        setTimeout(() => { if (user && !ready) attach(); }, 15000);
+      }));
     });
   }
 

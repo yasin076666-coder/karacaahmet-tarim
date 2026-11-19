@@ -18,25 +18,44 @@ const asstTitle = s => s.split(' ').filter(Boolean).map(w => w[0].toLocaleUpperC
 const asstEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const NB = '(?<!\\p{L})', NA = '(?!\\p{L})'; // Türkçe harflerle çalışan kelime sınırı
 
-function asstNormalize(text) {
-  let t = String(text).toLocaleLowerCase('tr-TR').replace(/[’`´]/g, "'").replace(/₺/g, ' lira ');
-  t = t.replace(/(\d)\.(\d{3})(?!\d)/g, '$1$2').replace(/(\d),(\d)/g, '$1.$2'); // 1.500 → 1500, 2,5 → 2.5
-  const W = Object.keys(ASST_NUM).concat('yüz', 'bin', 'buçuk').join('|');
-  t = t.replace(new RegExp(`${NB}(?:(?:${W})${NA}\\s*)+`, 'gu'), m => {
+// Sayı kelimeleri ve rakamlar tek sayıya: "yirmi beş"→25, "2 bin 500"→2500, "bin beş yüz"→1500.
+// İki ayrı rakam ("20 25": miktar ve fiyat) birleşmez; rakam yalnız "bin/yüz"den sonra devam eder.
+function asstJoinNumbers(t) {
+  const out = [], toks = t.split(' ');
+  for (let i = 0; i < toks.length;) {
+    const kind = w => /^\d+(?:\.\d+)?$/.test(w) ? 'D' : w in ASST_NUM ? 'W' : (w === 'yüz' || w === 'bin') ? 'M' : w === 'buçuk' ? 'H' : '';
+    if (!kind(toks[i]) || kind(toks[i]) === 'H') { out.push(toks[i++]); continue; }
+    const run = [toks[i++]];
+    while (i < toks.length) {
+      const k = kind(toks[i]), last = kind(run[run.length - 1]), wordsOnly = run.every(w => kind(w) === 'W');
+      if (k === 'M' || k === 'H' || (k === 'W' && (wordsOnly || last === 'M')) || (k === 'D' && last === 'M')) run.push(toks[i++]); else break;
+    }
     let total = 0, cur = 0;
-    m.trim().split(/\s+/).forEach(w => {
+    run.forEach(w => {
+      const k = kind(w);
       if (w === 'yüz') cur = (cur || 1) * 100;
       else if (w === 'bin') { total += (cur || 1) * 1000; cur = 0; }
-      else if (w === 'buçuk') cur += 0.5;
-      else cur += ASST_NUM[w];
+      else if (k === 'H') cur += 0.5;
+      else cur += k === 'D' ? +w : ASST_NUM[w];
     });
-    return ' ' + (total + cur) + ' ';
-  });
-  // Birim fiyat işaretleri "@" olur: "25 liradan", "25'ten", "tanesi 25"
-  t = t.replace(new RegExp(`(\\d)\\s*(?:lira|tl)'?(?:dan|den|ya|ye)${NA}`, 'gu'), '$1 @');
-  t = t.replace(new RegExp(`(\\d)'?(?:dan|den|tan|ten)${NA}`, 'gu'), '$1 @');
+    out.push(String(total + cur));
+  }
+  return out.join(' ');
+}
+function asstNormalize(text) {
+  let t = String(text).toLocaleLowerCase('tr-TR').replace(/[’`´]/g, "'").replace(/₺/g, ' lira ');
+  t = t.replace(/(\d)\.(?=\d{3}(?!\d))/g, '$1').replace(/(\d),(\d)/g, '$1.$2'); // 1.000.000 → 1000000, 2,5 → 2.5
+  // Birim fiyat işaretleri "@" olur: "25 liradan", "25'ten", "yirmi beşten", "tanesi 25"
+  const priceMarks = x => x
+    .replace(new RegExp(`(\\d)\\s*(?:lira|tl)'?(?:dan|den|ya|ye)${NA}`, 'gu'), '$1 @')
+    .replace(new RegExp(`(\\d)'?(?:dan|den|tan|ten)${NA}`, 'gu'), '$1 @');
+  t = priceMarks(t);
+  const W = Object.keys(ASST_NUM).filter(w => w !== 'on' && w !== 'bir').concat('yüz', 'bin').join('|'); // "ondan", "birden" başka anlam
+  t = t.replace(new RegExp(`${NB}(${W})'?(?:dan|den|tan|ten)${NA}`, 'gu'), '$1 @');
+  t = t.replace(/[^\p{L}\d.'@ ]+/gu, ' ').replace(/\s+/g, ' ').trim();
+  t = priceMarks(asstJoinNumbers(t));
   t = t.replace(new RegExp(`${NB}(?:tanesi|tanesini|kilosu|kilosunu|kasası|kasasını|adedi)\\s+(\\d+(?:\\.\\d+)?)`, 'gu'), '$1 @');
-  return t.replace(/[^\p{L}\d.'@ ]+/gu, ' ').replace(/\s+/g, ' ').trim();
+  return t.replace(/\s+/g, ' ').trim();
 }
 // Metinde geçen en uzun bilinen adı bulur ("halil'e", "halilden", "halil kardeşi'nin").
 function asstFindName(t, names) {
@@ -92,8 +111,13 @@ function parseCommand(text, ctx) {
     cur = { nums: [], unit: '', words: [] };
   };
   // Kalem; ürün kelimesi ve iki sayı (miktar, fiyat) birikince kapanır. Fiyatsız kalemin fiyatı formda son fiyattan gelir.
-  t.split(' ').forEach(tok => {
-    if (/^\d+(?:\.\d+)?$/.test(tok)) { cur.nums.push(+tok); if (cur.nums.length > 2) cur.nums.shift(); if (cur.nums.length === 2 && cur.words.length) close(); return; }
+  const toks = t.split(' ');
+  toks.forEach((tok, i) => {
+    if (/^\d+(?:\.\d+)?$/.test(tok)) {
+      // "10 kasa marul 2 kasa lahana": birimli yeni miktar, fiyatsız önceki kalemi kapatır
+      if (cur.nums.length === 1 && cur.words.length && ASST_UNITS[toks[i + 1]]) close();
+      cur.nums.push(+tok); if (cur.nums.length > 2) cur.nums.shift(); if (cur.nums.length === 2 && cur.words.length) close(); return;
+    }
     if (ASST_UNITS[tok]) { cur.unit = ASST_UNITS[tok]; return; }
     if (!ASST_FILLER.has(tok) && /^\p{L}+$/u.test(tok)) cur.words.push(tok);
   });

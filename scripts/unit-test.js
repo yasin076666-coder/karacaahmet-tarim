@@ -50,6 +50,11 @@ const cases = [
   ["Halil'in borcu ne kadar", { type: 'report', metric: 'balance', party: { name: 'Halil', kind: 'customer' } }],
   ['Kasada ne kadar var', { type: 'report', metric: 'cash' }],
   ['Bu hafta en çok ne sattım', { type: 'report', period: 'week', metric: 'top' }],
+  ['Halil 2 bin 500 ödedi', { type: 'collect', party: 'Halil', amount: 2500 }],
+  ['Halil 2 bin beş yüz lira ödedi', { type: 'collect', party: 'Halil', amount: 2500 }],
+  ['Halil 1.000.000 ödedi', { type: 'collect', party: 'Halil', amount: 1000000 }],
+  ["Halil'e 20 adet kıvırcık yirmi beşten sattım", { type: 'sale', party: 'Halil', items: [I('Kıvırcık', 20, 'adet', 25)] }],
+  ["Latif'e 10 kasa marul 2 kasa lahana sattım", { type: 'sale', party: 'Latif', items: [I('Marul', 10, 'kasa', 0), I('Lahana', 2, 'kasa', 0)] }],
   ['merhaba', { type: 'unknown' }],
 ];
 let bad = 0;

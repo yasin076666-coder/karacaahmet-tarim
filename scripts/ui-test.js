@@ -2,7 +2,10 @@
 const { chromium } = require('playwright'); const http=require('http'),fs=require('fs'),path=require('path');
 const [dir,seedFile]=process.argv.slice(2); const seed=JSON.parse(fs.readFileSync(seedFile,'utf8'));
 let fails=0; const check=(ok,m)=>{console.log((ok?'  ✔ ':'  ✘ ')+m); if(!ok) fails++;};
-const s=http.createServer((q,res)=>{const u=q.url.split('?')[0];const f=path.join(dir,u==='/'?'index.html':u);fs.readFile(f,(e,b)=>{if(e){res.writeHead(404);return res.end();}res.writeHead(200,{'Content-Type':f.endsWith('.js')?'text/javascript':f.endsWith('.css')?'text/css':'text/html','Cache-Control':'no-cache'});res.end(b);});}).listen(8830,async()=>{
+let slow=false; // zayıf internet taklidi: cevaplar 10 sn gecikir
+const s=http.createServer((q,res)=>{if(slow) return setTimeout(()=>serve(q,res),10000); serve(q,res);}).listen(8830,main);
+function serve(q,res){const u=q.url.split('?')[0];const f=path.join(dir,u==='/'?'index.html':u);fs.readFile(f,(e,b)=>{if(e){res.writeHead(404);return res.end();}res.writeHead(200,{'Content-Type':f.endsWith('.js')?'text/javascript':f.endsWith('.css')?'text/css':'text/html','Cache-Control':'no-cache'});res.end(b);});}
+async function main(){
 const b=await chromium.launch();const c=await b.newContext({viewport:{width:390,height:844}});await c.addInitScript(s=>{if(!sessionStorage.x){for(const k in s)localStorage.setItem(k,s[k]);sessionStorage.x=1;}},seed);
 const p=await c.newPage();const errs=[];p.on('pageerror',e=>errs.push(e.message));
 await p.goto('http://localhost:8830/',{waitUntil:'networkidle'});
@@ -30,5 +33,10 @@ const n=await p.evaluate(()=>typeof sales!=='undefined'?sales.length:-1).catch((
 check(n===JSON.parse(seed.tp_sales).length, `internet yokken uygulama açıldı ve ${n} satış görünüyor`);
 check(await p.locator('nav button').count()===6, 'internet yokken alt menü yerinde (stil yüklendi)');
 await c.setOffline(false);
+// 5) Zayıf internet: ağ cevap vermezse birkaç saniye içinde son çalışan sürümle açılır
+slow=true; const t0=Date.now();
+await p.reload({waitUntil:'load',timeout:30000}).catch(e=>errs.push('slow reload: '+e.message));
+const secs=(Date.now()-t0)/1000; slow=false;
+check(secs<8 && await p.evaluate(()=>typeof sales!=='undefined'&&sales.length>0).catch(()=>false), `zayıf internette ${secs.toFixed(1)} sn içinde açıldı`);
 check(errs.filter(e=>!/offline|Firebase|firestore/i.test(e)).length===0,'sayfa hatası yok '+JSON.stringify(errs.slice(0,3)));
-console.log(fails?`SONUÇ: ${fails} BAŞARISIZ`:'SONUÇ: TÜM KONTROLLER GEÇTİ'); await b.close(); s.close(); process.exit(fails?1:0);});
+console.log(fails?`SONUÇ: ${fails} BAŞARISIZ`:'SONUÇ: TÜM KONTROLLER GEÇTİ'); await b.close(); s.close(); process.exit(fails?1:0);}

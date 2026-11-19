@@ -18,7 +18,7 @@ function updateBackupBanner() {
 }
 
 function exportData() {
-  const backup = { version: 2, exportedAt: new Date().toISOString(), sales, purchases, expenses, cards, cardPays, cashMoves, wastes };
+  const backup = { version: 2, exportedAt: new Date().toISOString(), sales, purchases, expenses, cards, cardPays, cashMoves, wastes, biz: getBiz(), phones: getPhones() };
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const dl = document.createElement('a');
@@ -49,6 +49,10 @@ function importData(event) {
         cardPays = normList(imported.cardPays, normCardPay);
         cashMoves = normList(imported.cashMoves, normMove);
         wastes = normList(imported.wastes, normWaste);
+        try {
+          if (typeof imported.biz === 'string') localStorage.setItem('tp_biz', imported.biz);
+          if (imported.phones && typeof imported.phones === 'object') localStorage.setItem('tp_phones', JSON.stringify(imported.phones));
+        } catch (e) {}
         saveAll();
         applyFilters();
         alert('Yedek başarıyla yüklendi!');
