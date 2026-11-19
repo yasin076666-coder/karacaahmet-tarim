@@ -72,16 +72,27 @@
   }
   // meta: hiç eşitlenmemiş tarafta boş alanlar dolu olanı ezmez, telefonlar birleşir
   function mergeRec(key, L, S, B) {
-    if (key === 'meta/settings' && !B) return { biz: L.biz || S.biz || '', phones: Object.assign({}, S.phones, L.phones) };
-    const m = merge3(L, S, B);
-    if (Array.isArray(m.payments)) m.paid = Math.round(m.payments.reduce((a, p) => a + (+p.amount || 0), 0) * 100) / 100;
+    if (key === 'meta/settings' && !B) return { biz: S.biz || L.biz || '', phones: Object.assign({}, L.phones, S.phones) };
+    const m = merge3(L, S, B), r2 = x => Math.round(x * 100) / 100;
+    if (Array.isArray(m.payments) && Array.isArray(L.payments) && Array.isArray(S.payments)) {
+      // İki telefon da "ödenen tutarı şuna getir" düzeltmesi eklediyse biri yeter (yoksa ödeme iki kez sayılır)
+      const bIds = new Set((B && Array.isArray(B.payments) ? B.payments : []).map(p => p.id));
+      const adj = a => a.filter(p => !bIds.has(p.id) && p.note === 'Düzeltme').map(p => p.id);
+      const l = adj(L.payments), s = new Set(adj(S.payments));
+      if (l.length && s.size) m.payments = m.payments.filter(p => !s.has(p.id));
+    }
+    if (Array.isArray(m.payments)) m.paid = r2(m.payments.reduce((a, p) => a + (+p.amount || 0), 0));
+    // Kalemler iki tarafta farklı değiştiyse toplam, birleşen kalemlerden yeniden hesaplanır
+    if (Array.isArray(m.items) && Array.isArray(L.items) && Array.isArray(S.items) && canon(L.items) !== canon(S.items))
+      m.total = r2(m.items.reduce((a, i) => a + (+i.total || r2((+i.qty || 0) * (+i.price || 0))), 0));
     return m;
   }
 
   // Yazmadan önce buluttaki güncel hâli okur (işlem): arada öbür telefon değiştirdiyse birleştirip yazar.
   // ops: [{key, json|null}]. İnternet yoksa hata verir; kayıt cihazda kalır, bağlantı gelince yeniden denenir.
   async function commit(ops) {
-    const fixLocal = {};
+    const fixLocal = {}, sent = {};
+    ops.forEach(o => { sent[o.key] = o.json; });
     for (let i = 0; i < ops.length; i += 200) {
       const chunk = ops.slice(i, i + 200);
       const out = await db.runTransaction(async tx => {
@@ -102,9 +113,16 @@
       saveBase();
     }
     if (Object.keys(fixLocal).length) {               // birleşen hâli cihaza da yaz
-      const m = localMap();
-      Object.keys(fixLocal).forEach(k => { if (fixLocal[k] === null) delete m[k]; else m[k] = fixLocal[k]; });
+      const m = localMap(); let again2 = false;
+      Object.keys(fixLocal).forEach(k => {
+        const cur = m[k], mine = sent[k], v = fixLocal[k];
+        if (cur === mine) { if (v === null) delete m[k]; else m[k] = v; }
+        else if (cur !== undefined && v !== null) {   // yazma sürerken bu cihazda yine düzenlenmiş: üçünü birleştir, sonra gönder
+          m[k] = canon(mergeRec(k, JSON.parse(cur), JSON.parse(v), mine == null ? null : JSON.parse(mine))); again2 = true;
+        } else again2 = true;                         // bu arada silinmiş: silme sonra gönderilir
+      });
       window.__ktApplyData(toAppData(m));
+      if (again2) setTimeout(pushLocal, 0);
       say('Öbür telefonda aynı anda yapılan değişiklikle birleştirildi.', 'ok');
       return true;
     }
@@ -142,9 +160,10 @@
       else { const m = canon(mergeRec(k, JSON.parse(L), JSON.parse(S), JSON.parse(B))); merged[k] = m; ops.push({ key: k, json: m }); } // iki tarafta da değişmiş
     });
     if (orphans.length) {                          // hiç eşitlenmemiş cihazda bulutta olmayan kayıtlar
-      if (window.confirm(`Bu telefonda bulutta olmayan ${orphans.length} kayıt var. Öbür telefonda silinmiş ya da bu telefonda internetsiz girilmiş olabilirler. Buluta eklensin mi? (Hayır derseniz bu telefondan kaldırılır.)`))
-        orphans.forEach(k => ops.push({ key: k, json: local[k] }));
-      else orphans.forEach(k => { delete merged[k]; });
+      const cloudEmpty = !Object.keys(remote).some(k => !k.startsWith('meta/'));
+      if (cloudEmpty || window.confirm(`Bu telefonda bulutta olmayan ${orphans.length} kayıt var. Öbür telefonda silinmiş ya da bu telefonda internetsiz girilmiş olabilirler. Buluta eklensin mi? (Hayır derseniz önce yedek dosyası indirilir, sonra bu telefondan kaldırılır.)`))
+        orphans.forEach(k => ops.push({ key: k, json: local[k] }));  // bulut boşsa ilk eşitlemedir: sormadan yükle
+      else { try { window.exportData(); } catch (e) {} orphans.forEach(k => { delete merged[k]; }); }
     }
     // Taban = buluttaki hâl: gönderilemeyen yükleme/silme bir sonraki kayıtta kendiliğinden yeniden denenir.
     base = Object.assign({}, remote); saveBase();
@@ -154,7 +173,10 @@
     }
     window.__ktApplyData(toAppData(merged));
     ready = true;
-    if (ops.length) { say(`${ops.length} değişiklik buluta gönderiliyor…`); await commit(ops); }
+    if (ops.length) {
+      say(`${ops.length} değişiklik buluta gönderiliyor…`); busy = true;
+      try { await commit(ops); } finally { busy = false; if (again) { again = false; setTimeout(pushLocal, 0); } }
+    }
     window.__ktCloudOk = true; if (window.updateBackupBanner) updateBackupBanner();
     say('Eşitlendi. ' + count(merged), 'ok');
   }

@@ -1,6 +1,6 @@
 // Önce ağ, ağ yoksa ya da çok yavaşsa önbellek: internet iyiyken her zaman güncel dosya gelir,
 // internet yokken veya 3 sn içinde cevap gelmezse uygulama son çalışan sürümüyle açılır.
-const CACHE = 'kt-v2';
+const CACHE = 'kt-v3'; // sürüm yükselince eski dosyalar silinir
 const TIMEOUT = 3000;      // ağı bu kadar bekle
 const SLOW_WINDOW = 15000; // ağ bir kez yavaş kaldıysa bu süre boyunca önbellekten hemen ver
 // Önbelleğe alınacak dış kaynaklar (Firebase SDK, ikonlar). Firestore/kimlik istekleri asla önbelleğe girmez.

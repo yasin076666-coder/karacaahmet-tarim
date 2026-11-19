@@ -55,6 +55,10 @@ const cases = [
   ['Halil 1.000.000 ödedi', { type: 'collect', party: 'Halil', amount: 1000000 }],
   ["Halil'e 20 adet kıvırcık yirmi beşten sattım", { type: 'sale', party: 'Halil', items: [I('Kıvırcık', 20, 'adet', 25)] }],
   ["Latif'e 10 kasa marul 2 kasa lahana sattım", { type: 'sale', party: 'Latif', items: [I('Marul', 10, 'kasa', 0), I('Lahana', 2, 'kasa', 0)] }],
+  ['Halil bin buçuk lira ödedi', { type: 'collect', party: 'Halil', amount: 1500 }],
+  ['Halil iki bin buçuk ödedi', { type: 'collect', party: 'Halil', amount: 2500 }],
+  ['Halil yüz buçuk ödedi', { type: 'collect', party: 'Halil', amount: 150 }],
+  ["Halil'e iki buçuk kilo lahana 30 liradan sattım", { type: 'sale', party: 'Halil', items: [I('Lahana', 2.5, 'kg', 30)] }],
   ['merhaba', { type: 'unknown' }],
 ];
 let bad = 0;

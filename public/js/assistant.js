@@ -30,13 +30,13 @@ function asstJoinNumbers(t) {
       const k = kind(toks[i]), last = kind(run[run.length - 1]), wordsOnly = run.every(w => kind(w) === 'W');
       if (k === 'M' || k === 'H' || (k === 'W' && (wordsOnly || last === 'M')) || (k === 'D' && last === 'M')) run.push(toks[i++]); else break;
     }
-    let total = 0, cur = 0;
+    let total = 0, cur = 0, lastM = '';
     run.forEach(w => {
       const k = kind(w);
-      if (w === 'yüz') cur = (cur || 1) * 100;
-      else if (w === 'bin') { total += (cur || 1) * 1000; cur = 0; }
-      else if (k === 'H') cur += 0.5;
-      else cur += k === 'D' ? +w : ASST_NUM[w];
+      if (w === 'yüz') { cur = (cur || 1) * 100; lastM = w; }
+      else if (w === 'bin') { total += (cur || 1) * 1000; cur = 0; lastM = w; }
+      else if (k === 'H') { if (lastM === 'bin') total += 500; else if (lastM === 'yüz') cur += 50; else cur += 0.5; } // "bin buçuk" = 1500
+      else { cur += k === 'D' ? +w : ASST_NUM[w]; lastM = ''; }
     });
     out.push(String(total + cur));
   }

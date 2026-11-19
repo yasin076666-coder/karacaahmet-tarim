@@ -186,6 +186,42 @@ async function run() {
   check(await until(A2, both(A2), 20000), 'A’da iki tahsilat da var ve ödenen toplamı doğru');
   check(await until(B, both(B), 20000), 'B’de iki tahsilat da var ve ödenen toplamı doğru');
 
+  console.log('16) Bulut boşken ilk eşitleme: soru sormadan her şey yüklenir');
+  const E = await phone(b, 'E', seed, null, { dismiss: true });
+  await E.evaluate(() => firebase.auth().createUserWithEmailAndPassword('bos@ornek.com', 'test1234'));
+  check(await until(E, async () => (await statusText(E)).startsWith('Eşitlendi')), 'boş buluta ilk eşitleme tamamlandı');
+  check(!E.dialogs.some(m => m.includes('bulutta olmayan')), 'boş bulutta soru sorulmadı');
+  const eCount = counts(await data(E));
+  check(eCount === `${JSON.parse(seed.tp_sales).length}/${JSON.parse(seed.tp_purchases).length}/${JSON.parse(seed.tp_expenses).length}/${JSON.parse(seed.tp_cards).length}/${JSON.parse(seed.tp_cash).length}`, `kayıtlar telefonda duruyor (${eCount})`);
+  const cloudSales = await E.evaluate(() => firebase.firestore().collection('users').doc(firebase.auth().currentUser.uid).collection('sales').get({ source: 'server' }).then(q => q.size));
+  check(cloudSales === JSON.parse(seed.tp_sales).length, `bütün satışlar buluta yüklendi (${cloudSales})`);
+  await E.ctx.close();
+
+  console.log('17) Yazma sürerken aynı kayıt tekrar düzenlenir: ikinci düzenleme kaybolmaz');
+  const sid17 = await A2.evaluate(() => sales.find(x => x.total - (x.paid || 0) > 300).id);
+  await A2.evaluate(() => { const db = firebase.firestore(), orig = db.runTransaction.bind(db); db.runTransaction = async fn => { await new Promise(r => setTimeout(r, 2500)); return orig(fn); }; });
+  const pay = (P, id, amt, note) => P.evaluate(([id, amt, note]) => { const s = sales.find(x => x.id === id); s.payments.push({ id: newId('PY'), date: getTodayString(), amount: amt, note }); s.paid = sumPay(s.payments); saveAll(); }, [id, amt, note]);
+  await pay(A2, sid17, 10, 'A17-1');                // yazma başlar, 2,5 sn sürer
+  await A2.waitForTimeout(300);
+  await pay(B, sid17, 20, 'B17');                   // bu arada öbür telefon değiştirir
+  await B.waitForTimeout(1200);
+  await pay(A2, sid17, 30, 'A17-2');                // yazma bitmeden ikinci düzenleme
+  const all17 = P => async () => { const s = (await data(P)).sales.find(x => x.id === sid17); return ['A17-1', 'A17-2', 'B17'].every(n => s.payments.some(p => p.note === n)); };
+  check(await until(A2, all17(A2), 25000), 'A’da üç tahsilat da var');
+  check(await until(B, all17(B), 25000), 'B’de üç tahsilat da var');
+  await A2.evaluate(() => { const db = firebase.firestore(); delete db.runTransaction; });
+
+  console.log('18) İki telefon aynı satışı aynı anda "tamamı ödendi" yapar: ödeme iki kez sayılmaz');
+  const sid18 = await A2.evaluate(() => sales.find(x => x.total - (x.paid || 0) > 100).id);
+  await until(B, async () => (await data(B)).sales.some(x => x.id === sid18));
+  for (const P of [A2, B]) { await P.ctx.setOffline(true); await P.evaluate(() => window.dispatchEvent(new Event('offline'))); }
+  for (const P of [A2, B]) await P.evaluate(id => { const s = sales.find(x => x.id === id); setPaidTo(s, s.total, getTodayString()); saveAll(); }, sid18);
+  await A2.ctx.setOffline(false); await A2.evaluate(() => window.dispatchEvent(new Event('online')));
+  await A2.waitForTimeout(3000);
+  await B.ctx.setOffline(false); await B.evaluate(() => window.dispatchEvent(new Event('online')));
+  await B.waitForTimeout(4000);
+  for (const P of [A2, B]) { const s = (await data(P)).sales.find(x => x.id === sid18); check(Math.abs(s.paid - s.total) < 0.01, `${P.name}: ödenen ${s.paid} = toplam ${s.total} (iki kez sayılmadı)`); }
+
   const errs = [...A.errs, ...B.errs, ...A2.errs];
   check(errs.length === 0, 'sayfa hatası yok ' + (errs.length ? JSON.stringify(errs.slice(0, 3)) : ''));
   console.log(fails ? `SONUÇ: ${fails} KONTROL BAŞARISIZ` : 'SONUÇ: TÜM KONTROLLER GEÇTİ');
