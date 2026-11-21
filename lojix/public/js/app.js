@@ -14,7 +14,7 @@ function alertList(){const o=[];
  cariData().forEach(c=>{if(c.bal>0&&c.due&&dayDiff(c.due)<0)o.push({lv:'red',txt:`${c.client} • ${fmtTL(c.bal)} alacağın vadesi ${-dayDiff(c.due)} gün geçti`})});
  return o.sort((a,b)=>(a.lv==='red'?0:1)-(b.lv==='red'?0:1))}
 function renderAlerts(){const a=alertList(),el=$('alerts-box');if(!a.length){el.innerHTML='';return}
- el.innerHTML=`<div class="card p-4 md:p-5"><div class="font-semibold mb-2 flex items-center gap-2 ${a.some(x=>x.lv==='red')?'text-rose-600':'text-amber-700'}">${ic('alert')}${a.length} uyarı</div><div class="space-y-1.5 text-sm">${a.slice(0,8).map(x=>`<div class="flex items-start gap-2"><span class="w-2 h-2 rounded-full mt-1.5 shrink-0 ${x.lv==='red'?'bg-rose-500':'bg-amber-500'}"></span><span>${esc(x.txt)}</span></div>`).join('')}${a.length>8?`<div class="text-slate-400">+${a.length-8} uyarı daha</div>`:''}</div><button onclick="switchTab('maint')" class="mt-3 text-sm font-semibold text-blue-600">Bakım ve belgeleri aç</button></div>`}
+ el.innerHTML=`<div class="card p-4 md:p-5"><div class="font-semibold mb-2 flex items-center gap-2 ${a.some(x=>x.lv==='red')?'text-rose-600':'text-amber-700'}">${ic('alert')}${a.length} uyarı</div><div class="space-y-1.5 text-sm">${a.map((x,i)=>`<div class="flex items-start gap-2 ${i>2?'alerts-more':''}" ${i>2?'hidden':''}><span class="w-2 h-2 rounded-full mt-1.5 shrink-0 ${x.lv==='red'?'bg-rose-500':'bg-amber-500'}"></span><span>${esc(x.txt)}</span></div>`).join('')}</div>${a.length>3?`<button class="mt-2 text-sm font-semibold text-blue-600 mr-4" onclick="this.closest('.card').querySelectorAll('.alerts-more').forEach(x=>x.hidden=!x.hidden);this.textContent=this.textContent.startsWith('Tümünü')?'Daha az göster':'Tümünü göster (${a.length})'">Tümünü göster (${a.length})</button>`:''}<button onclick="switchTab('maint')" class="mt-2 text-sm font-semibold text-blue-600">Bakım ve belgeleri aç</button></div>`}
 function badge(d){if(!d)return'<span class="text-[11px] text-slate-400">tarih yok</span>';const n=dayDiff(d);return`<span class="${n<=7?'bg-rose-100 text-rose-700':n<=30?'bg-amber-100 text-amber-800':'bg-emerald-100 text-emerald-700'} px-2 py-0.5 rounded-full text-[11px] font-bold">${n<0?-n+' gün geçti':n+' gün kaldı'}</span>`}
 function renderMaint(){
  if(document.activeElement&&document.activeElement.id&&document.activeElement.id.startsWith('m-'))return;
@@ -43,19 +43,19 @@ const g2=h=>`<div class="grid grid-cols-2 gap-3">${h}</div>`,g3=h=>`<div class="
 function buildModals(){
  $('modals').innerHTML=
  modal('tripModal','Yeni sefer','saveTrip',
-  g2(fld('tripDate','Tarih','date','required')+sel('tripVehicle','Araç','',"required onchange=\"syncDriver('tripVehicle','tripDriver');previewTrip()\""))+
+  '<div class="form-sec">Araç ve tarih</div>'+g2(fld('tripDate','Tarih','date','required')+sel('tripVehicle','Araç','',"required onchange=\"syncDriver('tripVehicle','tripDriver');previewTrip()\""))+
   g2(sel('tripDriver','Şoför','','required')+fld('tripCargo','Yük & Frigo Derecesi','text','list="cargoSuggestions" placeholder="Yaş Sebze (+4°C)"'))+
-  g2(fld('tripRoute','Güzergâh (Nereden - Nereye)','text','required list="routeSuggestions" placeholder="Antalya - İstanbul Hal"')+fld('tripClient','Firma / Müşteri','text','required list="clientSuggestions"'))+
+  '<div class="form-sec">Güzergâh ve müşteri</div>'+g2(fld('tripRoute','Güzergâh (Nereden - Nereye)','text','required list="routeSuggestions" placeholder="Antalya - İstanbul Hal"')+fld('tripClient','Firma / Müşteri','text','required list="clientSuggestions"'))+
   g2(fld('tripKm','Sefer KM','number','min="0" step="1" inputmode="numeric" placeholder="Yakıt tahmini ve bakım km için" oninput="previewTrip()"')+fld('tripInvoice','Fatura / İrsaliye No','text','maxlength="60" placeholder="ABC2026000123"'))+
   g2(sel('tripCompany','İşi Veren Aracı Şirket','<option value="">Aracı şirket yok</option>','onchange="setTripCompany();previewTrip()"')+'<div class="text-xs text-slate-500 self-center">Şirket seçilince kayıtlı kesinti oranı otomatik uygulanır.</div>')+
-  g2(fld('tripPrice','Navlun (₺)','number','required min="0" step="0.01" inputmode="decimal" oninput="previewTrip()"')+sel('tripPaid','Tahsilat','<option>Vadeli / Bekliyor</option><option>Tahsil Edildi</option>'))+
+  '<div class="form-sec">Ücret ve tahsilat</div>'+g2(fld('tripPrice','Navlun (₺)','number','required min="0" step="0.01" inputmode="decimal" oninput="previewTrip()"')+sel('tripPaid','Tahsilat','<option data-short="Vadeli">Vadeli / Bekliyor</option><option data-short="Peşin">Tahsil Edildi</option>'))+
   g2(fld('tripDue','Vade Tarihi (vadeliyse)','date')+fld('tripComm','Komisyon (%)','number','min="0" max="100" step="0.1" value="0" inputmode="decimal" oninput="previewTrip()"'))+
   g2(fld('tripDeduct','Müşteri Kesintisi (₺)','number','min="0" step="0.01" value="0" inputmode="decimal" oninput="previewTrip()"')+fld('tripExtra','Sefer Masrafı (₺: HGS, harcırah)','number','min="0" step="0.01" value="0" inputmode="decimal" oninput="previewTrip()"'))+
   '<div id="tripPreview" class="text-xs bg-slate-50 border border-slate-200 rounded-lg p-3"></div>',
   'Seferi kaydet')+
  modal('fuelModal','Yakıt kaydı','saveFuel',
   g2(fld('fuelDate','Tarih','date','required')+sel('fuelVehicle','Araç','',"required onchange=\"syncDriver('fuelVehicle','fuelDriver')\""))+
-  g2(sel('fuelDriver','Şoför','','required')+sel('fuelType','Yakıt Türü','<option value="CEKICI">Çekici Mazotu</option><option value="FRIGO">Frigo Dorse Mazotu</option><option value="ADBLUE">AdBlue</option>'))+
+  g2(sel('fuelDriver','Şoför','','required')+sel('fuelType','Yakıt Türü','<option value="CEKICI" data-short="Çekici">Çekici Mazotu</option><option value="FRIGO" data-short="Frigo">Frigo Dorse Mazotu</option><option value="ADBLUE" data-short="AdBlue">AdBlue</option>'))+
   g3(fld('fuelLiters','Litre','number','required min="0.1" step="0.01" inputmode="decimal" oninput="calcFuel()"')+fld('fuelUnitPrice','Litre Fiyatı (₺)','number','required min="0.01" step="0.01" inputmode="decimal" oninput="calcFuel()"')+fld('fuelTotalCost','Toplam (₺)','number','required min="0.01" step="0.01" inputmode="decimal"'))+
   g2(fld('fuelOdometerKm','Araç Gösterge KM (çekici mazotunda zorunlu)','number','min="0" step="1" inputmode="numeric"')+fld('fuelStation','Petrol / İstasyon','text','list="stationSuggestions" placeholder="Opet Afyon / Shell"')),
   'Yakıtı kaydet')+
@@ -80,6 +80,12 @@ function buildModals(){
   g2(fld('companyName','Şirket adı','text','required maxlength="120"')+fld('companyRate','Navlun kesintisi (%)','number','required min="0" max="100" step="0.1" value="7" inputmode="decimal"')),
   'Şirketi ekle');
 }
+// Açılır liste yerine dokunmalı düğmeler; asıl <select> formda kalır (değer kodla atansa da düğmeler güncellenir).
+function segmented(id){const sel=$(id);if(!sel||sel.dataset.seg)return;sel.dataset.seg=1;const box=document.createElement('div');box.className='seg';box.setAttribute('role','group');box.setAttribute('aria-label',sel.closest('div').querySelector('label')?.textContent||'');
+ const paint=()=>box.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===sel.value)));
+ [...sel.options].forEach(o=>{const b=document.createElement('button');b.type='button';b.dataset.v=o.value;b.textContent=o.dataset.short||o.textContent;b.onclick=()=>{sel.value=o.value;sel.dispatchEvent(new Event('change',{bubbles:true}))};box.appendChild(b)});
+ const d=Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value');Object.defineProperty(sel,'value',{get(){return d.get.call(this)},set(v){d.set.call(this,v);paint()},configurable:true});
+ sel.form&&sel.form.addEventListener('reset',()=>setTimeout(paint));sel.addEventListener('change',paint);sel.classList.add('seg-hidden');sel.tabIndex=-1;sel.after(box);sel.closest('div').classList.add('col-span-2');paint()}
 function openModal(id){
  if(['tripModal','fuelModal','expenseModal'].includes(id)&&!state.vehicles.length){toast('Önce bir araç ekleyin.','error');id='vehicleModal'}
  setupSuggestions();if(!editTarget)resetEditModal(id);
@@ -165,7 +171,7 @@ function resetAll(){
 
 function printReport(){const mv=$('monthFilter').value;$('print-meta').textContent=$('page-title').textContent+' • Dönem: '+(mv==='ALL'?'Tüm Zamanlar':mv)+' • '+new Date().toLocaleDateString('tr-TR');window.print()}
 (function(){const l=document.querySelector('link[rel="apple-touch-icon"]');if(l)document.querySelectorAll('.lojix-logo').forEach(i=>i.src=l.href)})();
-buildNav();buildModals();switchTab('dashboard');renderAll();setupSuggestions();lxPrepLogo();
+buildNav();buildModals();['tripPaid','fuelType'].forEach(segmented);switchTab('dashboard');renderAll();setupSuggestions();lxPrepLogo();
 
 // Son 6 ayın navlunu, gider+kesintisi ve neti (dönem filtresinden bağımsız).
 function trendChart(){
@@ -182,3 +188,5 @@ function trendChart(){
   <text x="${x}" y="${H-6}" text-anchor="middle" class="${r.net>=0?'net-pos':'net-neg'}">${r.net<0?'−':''}${sh(Math.abs(r.net))}</text></g>`}).join('');
  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Son 6 ayın navlun, gider ve net kâr grafiği"><line x1="0" x2="${W}" y1="${top+ch}" y2="${top+ch}" stroke="var(--line)"/>${bars}</svg>`;
 }
+// Açılış ekranı yalnız ana ekrandan açılınca görünür; ilk çizimden kısa süre sonra kaybolur.
+setTimeout(()=>{const sp=$('splash');if(sp){sp.classList.add('out');setTimeout(()=>sp.remove(),400)}},450);

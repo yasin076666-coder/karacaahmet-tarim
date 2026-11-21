@@ -115,6 +115,19 @@ async function run() {
     await P.evaluate(() => openSheet('quickSheet')); await P.fill('#asst-input', 'Toros Gıda borcu ne kadar?'); await P.locator('#asst-input').press('Enter');
     check((await P.textContent('#asst-out')).includes('kalan bakiye'), 'Rapor sorusu yanıtlandı: ' + (await P.textContent('#asst-out')).slice(0, 80));
 
+    console.log('6) Telefon: kartlar ve dokunmalı seçim');
+    const M = await b.newPage({ viewport: { width: 390, height: 844 } });
+    await M.addInitScript(x => { localStorage.clear(); localStorage.setItem('FRIGO_FILO_PRO_V1', x); }, JSON.stringify(seed));
+    await M.goto('http://localhost:8812/', { waitUntil: 'load' });
+    await M.evaluate(() => switchTab('trips'));
+    check(await M.locator('#trips-cards .mcard').count() === seed.trips.length && !(await M.isVisible('#trips-tbody')), 'Telefonda seferler kart olarak listelendi, tablo gizli');
+    await M.evaluate(() => openModal('fuelModal'));
+    await M.click('#fuelModal .seg button:has-text("Frigo")');
+    check(await M.inputValue('#fuelType') === 'FRIGO', 'Dokunmalı seçim yakıt türünü değiştirdi');
+    await M.evaluate(() => { $('fuelType').value = 'ADBLUE'; });
+    check(await M.getAttribute('#fuelModal .seg button:has-text("AdBlue")', 'aria-pressed') === 'true', 'Kodla atanan değer düğmelere yansıdı');
+    await M.close();
+
     for (const p of [E, P]) check(!p.errs.length, 'Sayfa hatası yok ' + p.errs.join(' | '));
   } catch (e) { console.error(e); fails++; }
   await b.close(); srv.close();

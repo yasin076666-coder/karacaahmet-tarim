@@ -19,6 +19,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
+<div id="splash" aria-hidden="true"><img src="img/icon-192.png" alt=""><div class="bar"></div></div>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></symbol>
  <symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></symbol>
@@ -54,14 +55,14 @@
 
 <div class="min-h-screen md:flex">
  <aside id="side" class="hidden md:flex md:w-60 flex-col shrink-0 px-3 py-4 sticky top-0 h-screen overflow-y-auto">
-  <div class="flex items-center gap-3 px-2 pb-3">
-   <img class="lojix-logo w-10 h-10 rounded-xl" alt="">
-   <div><div class="font-bold text-lg leading-tight">Lojix</div><div class="text-[12px] leading-tight" style="color:#7D91AE">Frigo filo yönetimi</div></div>
+  <div class="flex items-center gap-3 px-1.5 pb-4 pt-1">
+   <img class="lojix-logo logo-tile w-14 h-14" src="img/icon-192.png" alt="Lojix">
+   <div><div class="font-bold text-xl leading-tight tracking-tight">Lojix</div><div class="text-[12.5px] leading-snug" style="color:#8FA2BC">Lojistikte akılcı çözümler</div></div>
   </div>
  </aside>
  <div class="flex-1 min-w-0 flex flex-col">
   <header class="app-head px-4 md:px-8 py-3 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-20" style="padding-top:max(0.75rem,env(safe-area-inset-top))">
-   <div class="flex items-center gap-2.5 min-w-0"><img class="lojix-logo w-8 h-8 rounded-lg md:hidden" alt=""><h1 id="page-title">Özet</h1><button id="sync-pill" data-state="off" onclick="switchTab('settings')" class="sync-pill" aria-label="Bulut eşitleme durumu" title="Bulut bağlı değil"></button></div>
+   <div class="flex items-center gap-2.5 min-w-0"><img class="lojix-logo logo-tile w-9 h-9 !rounded-[10px] !p-0.5 md:hidden" src="img/icon-192.png" alt="Lojix"><h1 id="page-title">Özet</h1><button id="sync-pill" data-state="off" onclick="switchTab('settings')" class="sync-pill" aria-label="Bulut eşitleme durumu" title="Bulut bağlı değil"></button></div>
    <div class="flex items-center gap-2 flex-wrap">
     <select id="monthFilter" onchange="onPeriodChange()" class="sel" aria-label="Dönem"></select>
     <div id="dateRangeControls" class="items-center gap-1" style="display:none"><input id="globalStartDate" type="date" class="sel" aria-label="Başlangıç tarihi" onchange="renderAll()"><span class="text-slate-500">–</span><input id="globalEndDate" type="date" class="sel" aria-label="Bitiş tarihi" onchange="renderAll()"></div>
@@ -73,7 +74,14 @@
    <div id="print-head"><img class="lojix-logo" style="width:56px;height:56px;border-radius:12px" alt=""><div><div style="font-size:22px;font-weight:700;color:#0a3a78">Lojix</div><div id="print-meta" style="font-size:12px;color:#475569;margin-top:2px"></div></div></div>
 
    <section id="tab-dashboard" class="tab-content active space-y-5">
-    <button onclick="asstListen()" class="voice-cta card w-full flex items-center gap-3 p-3.5 text-left"><span class="sheet-ic bg-blue-100 text-blue-700"><svg class="ic"><use href="#i-mic"/></svg></span><span class="min-w-0"><b class="font-semibold block">Sesle kayıt</b><small class="text-slate-500 text-[13px] block truncate">“101 Antalya'dan İstanbul'a sefer 45 bin” · “101'e 400 litre mazot”</small></span></button>
+    <div class="hello"><div class="min-w-0"><div id="hello-date" class="hello-date"></div><h2 id="hello-title">Merhaba</h2><p id="hello-sum"></p></div></div>
+    <div class="quick-grid">
+     <button class="quick" onclick="openModal('tripModal')"><span class="q-ic bg-emerald-100 text-emerald-700"><svg class="ic ic-lg"><use href="#i-route"/></svg></span>Sefer</button>
+     <button class="quick" onclick="openModal('fuelModal')"><span class="q-ic bg-sky-100 text-sky-700"><svg class="ic ic-lg"><use href="#i-fuel"/></svg></span>Yakıt</button>
+     <button class="quick" onclick="openModal('expenseModal')"><span class="q-ic bg-rose-100 text-rose-700"><svg class="ic ic-lg"><use href="#i-receipt"/></svg></span>Gider</button>
+     <button class="quick" onclick="openModal('payModal')"><span class="q-ic bg-blue-100 text-blue-700"><svg class="ic ic-lg"><use href="#i-wallet"/></svg></span>Tahsilat</button>
+     <button class="quick voice" onclick="asstListen()" aria-label="Sesle kayıt"><span class="q-ic"><svg class="ic ic-lg"><use href="#i-mic"/></svg></span>Söyle</button>
+    </div>
     <div id="alerts-box"></div>
     <div id="kpis" class="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4"></div>
     <div class="grid grid-cols-1 xl:grid-cols-5 gap-5">
@@ -98,9 +106,10 @@
    <section id="tab-trips" class="tab-content space-y-4">
     <div class="flex flex-wrap gap-2"><select id="tF-v" onchange="renderTrips()" class="sel" aria-label="Araç"></select><select id="tF-d" onchange="renderTrips()" class="sel" aria-label="Şoför"></select><input id="tF-q" type="search" oninput="renderTrips()" class="sel flex-1 min-w-[200px]" placeholder="Müşteri, güzergâh, fatura no, plaka…" aria-label="Seferlerde ara"></div>
     <div id="trip-sum" class="text-sm text-slate-500"></div>
-    <div class="card overflow-x-auto"><table class="rtable w-full text-sm">
-     <thead><tr><th class="th">Tarih</th><th class="th">Araç</th><th class="th">Güzergâh ve müşteri</th><th class="th text-right">Navlun</th><th class="th text-right">Komisyon ve kesinti</th><th class="th text-right">Sefer katkısı</th><th class="th text-center">Tahsilat</th><th class="th"></th></tr></thead>
+    <div class="card overflow-x-auto desk-only"><table class="rtable w-full text-sm">
+     <thead><tr><th class="th">Tarih</th><th class="th">Araç</th><th class="th">Güzergâh ve müşteri</th><th class="th text-right">Navlun</th><th class="th text-right">Komisyon ve kesinti</th><th class="th text-right">Tahmini kâr</th><th class="th text-center">Tahsilat</th><th class="th"></th></tr></thead>
      <tbody id="trips-tbody" class="divide-y divide-slate-200"></tbody></table></div>
+    <div id="trips-cards" class="mlist mob-only"></div>
    </section>
 
    <section id="tab-cari" class="tab-content space-y-4">
@@ -117,23 +126,26 @@
     <h3 class="font-semibold text-[17px] pt-2">Açık seferler</h3>
     <div class="card overflow-x-auto"><table class="rtable w-full text-sm"><thead><tr><th class="th">Müşteri</th><th class="th">Sefer</th><th class="th">Vade</th><th class="th text-right">Kalan</th><th class="th"></th></tr></thead><tbody id="open-tbody" class="divide-y divide-slate-200"></tbody></table></div>
     <h3 class="font-semibold text-[17px] pt-2">Tahsilatlar</h3>
-    <div class="card overflow-x-auto"><table class="rtable w-full text-sm"><thead><tr><th class="th">Tarih</th><th class="th">Müşteri</th><th class="th">Not</th><th class="th text-right">Tutar</th><th class="th"></th></tr></thead><tbody id="pay-tbody" class="divide-y divide-slate-200"></tbody></table></div>
+    <div class="card overflow-x-auto desk-only"><table class="rtable w-full text-sm"><thead><tr><th class="th">Tarih</th><th class="th">Müşteri</th><th class="th">Not</th><th class="th text-right">Tutar</th><th class="th"></th></tr></thead><tbody id="pay-tbody" class="divide-y divide-slate-200"></tbody></table></div>
+    <div id="pay-cards" class="mlist mob-only"></div>
     <p class="text-[13px] text-slate-500">Seçilen tarih aralığındaki seferler ve aynı aralıktaki tahsilatlar hesaplanır. Sefere bağlanan tahsilat önce o seferden, bağlanmayan tahsilat vadesi en yakın seferden düşer.</p>
    </section>
 
    <section id="tab-fuel" class="tab-content space-y-4">
     <div class="flex flex-wrap gap-2"><select id="fF-v" onchange="renderFuel()" class="sel" aria-label="Araç"></select>
      <select id="fF-t" onchange="renderFuel()" class="sel" aria-label="Yakıt türü"><option value="ALL">Tüm yakıt</option><option value="CEKICI">Çekici mazotu</option><option value="FRIGO">Frigo dorse mazotu</option><option value="ADBLUE">AdBlue</option></select></div>
-    <div class="card overflow-x-auto"><table class="rtable w-full text-sm">
+    <div class="card overflow-x-auto desk-only"><table class="rtable w-full text-sm">
      <thead><tr><th class="th">Tarih</th><th class="th">Araç</th><th class="th">Tür ve istasyon</th><th class="th text-right">Litre</th><th class="th text-right">Birim fiyat</th><th class="th text-right">Gösterge km</th><th class="th text-center">Tüketim</th><th class="th text-right">Tutar</th><th class="th"></th></tr></thead>
      <tbody id="fuel-tbody" class="divide-y divide-slate-200"></tbody></table></div>
+    <div id="fuel-cards" class="mlist mob-only"></div>
    </section>
 
    <section id="tab-expenses" class="tab-content space-y-4">
     <div class="flex flex-wrap gap-2"><select id="eF-v" onchange="renderExpenses()" class="sel" aria-label="Araç"></select><select id="eF-c" onchange="renderExpenses()" class="sel" aria-label="Kategori"></select></div>
-    <div class="card overflow-x-auto"><table class="rtable w-full text-sm">
+    <div class="card overflow-x-auto desk-only"><table class="rtable w-full text-sm">
      <thead><tr><th class="th">Tarih</th><th class="th">Araç</th><th class="th">Şoför</th><th class="th">Kategori</th><th class="th">Açıklama</th><th class="th text-right">Tutar</th><th class="th"></th></tr></thead>
      <tbody id="exp-tbody" class="divide-y divide-slate-200"></tbody></table></div>
+    <div id="exp-cards" class="mlist mob-only"></div>
     <div class="card p-5"><div class="flex items-center justify-between gap-3 flex-wrap mb-3"><h3 class="font-semibold text-[17px]">Son 6 ay</h3><div class="legend"><span style="--c:var(--ice)">Navlun</span><span style="--c:var(--line-strong)">Gider ve kesinti</span><span style="--c:var(--pos)">Net</span></div></div><div id="expense-chart" class="trend"></div></div>
    </section>
 
