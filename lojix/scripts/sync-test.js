@@ -26,6 +26,9 @@ async function reset() {
   await req('DELETE', `${EMU}:9099/emulator/v1/projects/${PROJECT}/accounts`);
   await req('POST', `${EMU}:9099/identitytoolkit.googleapis.com/v1/projects/${PROJECT}/accounts:batchCreate`,
     { users: Object.values(USERS).map(([localId, email]) => ({ localId, email, rawPassword: PASS, emailVerified: true })) }, OWNER);
+  // Sahip B (Yasin); A yönetici, R görüntüleyici olarak Kullanıcılar listesinde (gerçek kurulumdaki gibi uid'leriyle)
+  for (const [who, role] of [['a', 'admin'], ['r', 'viewer']])
+    await req('PATCH', fsUrl('/fleets/lojix/users/' + encodeURIComponent(USERS[who][1])), { fields: { name: fv(who.toUpperCase()), role: fv(role), uid: fv(USERS[who][0]) } }, OWNER);
 }
 // Eski tek belgeyi (lojix_data/1) emülatöre yazar: Firestore REST değer biçimine çevirir.
 const fv = v => v === null || v === undefined ? { nullValue: null } : Array.isArray(v) ? { arrayValue: { values: v.map(fv) } }
@@ -135,10 +138,14 @@ async function run() {
     check(await until(Rp, async () => (await st(Rp)).expenses.some(e => e.note === 'A yeni gider')), 'Yazabilen hesabın kaydı görüntüleme hesabına canlı geldi');
 
     console.log('7) İş ortağı (Moonlog): kendi kayıtları, kısıtlı ekran, çöp kutusu');
-    await A.evaluate(() => switchTab('settings'));
-    await A.fill('#partnerName', 'Deneme Ortak'); await A.fill('#partnerEmail', USERS_P_EMAIL); await A.selectOption('#partnerCompany', 'IC_MOONLOG');
-    await A.locator('#partnerForm').evaluate(f => f.requestSubmit());
-    check(await until(A, async () => (await A.textContent('#users-list')).includes(USERS_P_EMAIL)), 'Yönetici iş ortağını ekledi');
+    await B.evaluate(() => switchTab('settings'));
+    await B.fill('#userName', 'Deneme Ortak'); await B.fill('#userEmail', USERS_P_EMAIL); await B.selectOption('#userRole', 'partner'); await B.selectOption('#userCompany', 'IC_MOONLOG');
+    await B.locator('#userForm').evaluate(f => f.requestSubmit());
+    check(await until(B, async () => (await B.textContent('#users-list')).includes(USERS_P_EMAIL)), 'Sahip iş ortağını ekledi');
+    await A.evaluate(() => { switchTab('settings'); renderUsers(); });
+    check(await until(A, async () => (await A.textContent('#users-list')).includes(USERS_P_EMAIL)) && await A.evaluate(() => document.getElementById('userForm').hidden), 'Yönetici listeyi görüyor ama kullanıcı ekleyemiyor');
+    const wr = await A.evaluate(async () => { try { await firebase.firestore().collection('fleets').doc('lojix').collection('users').doc('kotu@test.com').set({ role: 'admin' }); return 'yazdı'; } catch (e) { return e.code; } });
+    check(wr === 'permission-denied', 'Kural: sahip dışında kimse kullanıcı/rol ekleyemez');
     const Pp = await phone(b, 'P', null);
     check(await signIn(Pp, 'p'), 'İş ortağı girişi: ' + await status(Pp));
     check(await Pp.evaluate(() => window.LX_ROLE === 'partner' && document.body.classList.contains('partner')), 'Rol: iş ortağı');
@@ -175,13 +182,13 @@ async function run() {
     check(await until(Pp, async () => (await st(Pp)).expenses.some(e => e.note === 'ortak gideri')), 'Yönetici geri aldı, gider ortağın listesine de döndü');
     check(await until(A, async () => (await A.evaluate(() => window.__lxTrash.length)) === trashN - 1), 'Geri alınan kayıt çöp kutusundan çıktı');
 
-    console.log('8) İkinci iş ortağını yönetici kendisi ekler: hesap açılır, parola bağlantısı gider');
+    console.log('8) İkinci iş ortağını sahip ekler: hesap açılır, parola bağlantısı gider');
     const E2 = 'ikinci@moonlog.test';
-    await A.evaluate(() => switchTab('settings'));
-    await A.fill('#partnerName', 'İkinci Ortak'); await A.fill('#partnerEmail', E2); await A.selectOption('#partnerCompany', 'IC_MOONLOG');
-    await A.locator('#partnerForm').evaluate(f => f.requestSubmit());
-    check(await until(A, async () => (await A.textContent('#toasts')).includes('Giriş hesabı açıldı')), 'Hesap açıldı bildirimi');
-    check(await A.evaluate(() => firebase.auth().currentUser.email) === USERS.a[1], 'Yöneticinin oturumu kapanmadı');
+    await B.evaluate(() => switchTab('settings'));
+    await B.fill('#userName', 'İkinci Ortak'); await B.fill('#userEmail', E2); await B.selectOption('#userRole', 'partner'); await B.selectOption('#userCompany', 'IC_MOONLOG');
+    await B.locator('#userForm').evaluate(f => f.requestSubmit());
+    check(await until(B, async () => (await B.textContent('#toasts')).includes('Giriş hesabı açıldı')), 'Hesap açıldı bildirimi');
+    check(await B.evaluate(() => firebase.auth().currentUser.email) === USERS.b[1], 'Sahibin oturumu kapanmadı');
     const codes = (await req('GET', `${EMU}:9099/emulator/v1/projects/${PROJECT}/oobCodes`)).oobCodes || [];
     const rcode = codes.filter(c => c.email === E2 && c.requestType === 'PASSWORD_RESET').pop();
     check(!!rcode, 'Parola belirleme bağlantısı gönderildi');
@@ -193,7 +200,41 @@ async function run() {
     check(await P2.evaluate(() => window.LX_ROLE === 'partner' && firebase.auth().currentUser.emailVerified), 'Bağlantı e-postayı doğruladı, rol iş ortağı');
     check((await st(P2)).trips.length === 0, 'İkinci ortak birinci ortağın seferlerini görmüyor');
 
-    for (const p of [A, B, X, Rp, Pp, P2]) check(!p.errs.length, 'Sayfa hatası yok ' + p.errs.join(' | '));
+    console.log('9) Şoför: yalnızca yakıt ve gider, atanan araç kilitli; sahip erişimi kaldırır');
+    const ED = 'sofor@test.com';
+    await B.fill('#userName', 'Deneme Şoför'); await B.fill('#userEmail', ED); await B.selectOption('#userRole', 'driver'); await B.selectOption('#userVehicle', 'V1');
+    await B.locator('#userForm').evaluate(f => f.requestSubmit());
+    check(await until(B, async () => (await B.textContent('#users-list')).includes(ED)), 'Sahip şoförü ekledi');
+    const dcode = ((await req('GET', `${EMU}:9099/emulator/v1/projects/${PROJECT}/oobCodes`)).oobCodes || []).filter(c => c.email === ED && c.requestType === 'PASSWORD_RESET').pop();
+    await req('POST', `${EMU}:9099/identitytoolkit.googleapis.com/v1/accounts:resetPassword?key=x`, { oobCode: dcode.oobCode, newPassword: 'soforParola1' });
+    const D = await phone(b, 'D', null);
+    await D.evaluate(() => switchTab('settings'));
+    await D.fill('#lojix-cloud-email', ED); await D.fill('#lojix-cloud-password', 'soforParola1'); await D.click('#lojix-cloud-login');
+    check(await until(D, async () => (await status(D)).startsWith('Eşitlendi')), 'Şoför girişi: ' + await status(D));
+    check(await D.evaluate(() => window.LX_ROLE === 'driver' && document.body.classList.contains('driver')), 'Rol: şoför');
+    await D.evaluate(() => switchTab('trips'));
+    check(await D.evaluate(() => document.getElementById('tab-fuel').classList.contains('active') && getComputedStyle(document.querySelector('#side [data-tab=trips]')).display === 'none'), 'Sefer sayfası kapalı, yakıta yönlendi');
+    await D.evaluate(() => openModal('tripModal'));
+    check(!(await D.evaluate(() => document.getElementById('tripModal').classList.contains('flex'))) && (await D.textContent('#toasts')).includes('yalnızca yakıt ve gider'), 'Sefer formu açılmadı');
+    await D.evaluate(() => openModal('fuelModal'));
+    check(await D.inputValue('#fuelVehicle') === 'V1' && await D.evaluate(() => document.getElementById('fuelVehicle').disabled), 'Yakıtta atanan araç kilitli');
+    await D.fill('#fuelLiters', '200'); await D.fill('#fuelUnitPrice', '45'); await D.evaluate(() => calcFuel()); await D.fill('#fuelOdometerKm', '999999');
+    await D.locator('#fuelModal-form').evaluate(f => f.requestSubmit());
+    await addExpense(D, 650, 'şoför yemek');
+    check(await until(A, async () => (await st(A)).fuels.some(f => f.odometerKm === 999999 && f.createdByRole === 'driver' && f.createdByName === 'Deneme Şoför')), 'Şoförün yakıtı yöneticiye ekleyen bilgisiyle geldi');
+    check(await until(A, async () => (await st(A)).expenses.some(e => e.note === 'şoför yemek' && e.vehicleId === 'V1')), 'Şoförün gideri yöneticiye geldi');
+    await A.evaluate(() => switchTab('expenses'));
+    check(await until(A, async () => (await A.textContent('#exp-cards')).includes('Deneme Şoför · şoför')), 'Yönetici listesinde "· şoför" etiketi');
+    const dr = await D.evaluate(async () => { const c = firebase.firestore().collection('fleets').doc('lojix'), u = firebase.auth().currentUser.uid, ts = firebase.firestore.FieldValue.serverTimestamp(), r = {};
+      try { await c.collection('trips').doc('77').set({ data: { id: 77, createdBy: u }, updatedAt: ts, updatedBy: u }); r.trip = 'yazdı'; } catch (e) { r.trip = e.code; }
+      try { await c.collection('fuels').doc('78').set({ data: { id: 78, createdBy: u, vehicleId: 'V2' }, updatedAt: ts, updatedBy: u }); r.other = 'yazdı'; } catch (e) { r.other = e.code; } return r; });
+    check(dr.trip === 'permission-denied' && dr.other === 'permission-denied', 'Kural: şoför sefer ve başka araca yakıt yazamaz ' + JSON.stringify(dr));
+    await B.evaluate(e => removeUser(e), ED);
+    check(await until(B, async () => !(await B.textContent('#users-list')).includes(ED)), 'Sahip şoförün erişimini kaldırdı');
+    await D.reload({ waitUntil: 'load' });
+    check(await until(D, async () => (await status(D)).includes('erişim izni yok')), 'Erişimi kaldırılan şoför giremiyor: ' + await status(D));
+
+    for (const p of [A, B, X, Rp, Pp, P2, D]) check(!p.errs.length, 'Sayfa hatası yok ' + p.errs.join(' | '));
   } catch (e) { console.error(e); fails++; }
   await b.close();
   console.log(fails ? `\n${fails} kontrol BAŞARISIZ` : '\nTüm kontroller geçti');

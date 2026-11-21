@@ -128,6 +128,18 @@ async function run() {
     check(await M.getAttribute('#fuelModal .seg button:has-text("AdBlue")', 'aria-pressed') === 'true', 'Kodla atanan değer düğmelere yansıdı');
     await M.close();
 
+    console.log('6b) Araç ↔ şoför bağlantısı');
+    await P.evaluate(() => document.querySelectorAll('.modal-wrap.flex').forEach(m => closeModal(m.id)));
+    for (const [m, v, d] of [['tripModal', 'tripVehicle', 'tripDriver'], ['fuelModal', 'fuelVehicle', 'fuelDriver'], ['expenseModal', 'expVehicle', 'expDriver']]) {
+      await P.evaluate(m => openModal(m), m);
+      await P.selectOption('#' + v, seed.vehicles[2].id);
+      const okA = await P.inputValue('#' + d) === seed.vehicles[2].driver;
+      await P.selectOption('#' + d, seed.vehicles[1].driver);
+      const okB = await P.inputValue('#' + v) === seed.vehicles[1].id;
+      check(okA && okB, `${m}: araç seçilince şoför, şoför seçilince araç değişti`);
+      await P.evaluate(m => closeModal(m), m);
+    }
+
     console.log('7) Otomatik yardımlar');
     await P.evaluate(() => document.querySelectorAll('.modal-wrap.flex').forEach(m => closeModal(m.id)));
     await P.evaluate(() => openModal('tripModal'));

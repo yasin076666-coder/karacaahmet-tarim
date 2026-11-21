@@ -44,7 +44,7 @@ function buildModals(){
  $('modals').innerHTML=
  modal('tripModal','Yeni sefer','saveTrip',
   '<div class="form-sec">Araç ve tarih</div>'+g2(fld('tripDate','Tarih','date','required')+sel('tripVehicle','Araç','',"required onchange=\"syncDriver('tripVehicle','tripDriver');previewTrip()\""))+
-  g2(sel('tripDriver','Şoför','','required')+fld('tripCargo','Yük & Frigo Derecesi','text','list="cargoSuggestions" placeholder="Yaş Sebze (+4°C)"'))+
+  g2(sel('tripDriver','Şoför','','required onchange="syncVehicle(\'tripDriver\',\'tripVehicle\')"')+fld('tripCargo','Yük & Frigo Derecesi','text','list="cargoSuggestions" placeholder="Yaş Sebze (+4°C)"'))+
   '<div class="form-sec">Güzergâh ve müşteri</div>'+g2(fld('tripRoute','Güzergâh (Nereden - Nereye)','text','required list="routeSuggestions" placeholder="Antalya - İstanbul Hal"')+fld('tripClient','Firma / Müşteri','text','required list="clientSuggestions"'))+
   g2(fld('tripKm','Sefer KM','number','min="0" step="1" inputmode="numeric" placeholder="Yakıt tahmini ve bakım km için" oninput="previewTrip()"')+fld('tripInvoice','Fatura / İrsaliye No','text','maxlength="60" placeholder="ABC2026000123"'))+
   g2(sel('tripCompany','İşi Veren Aracı Şirket','<option value="">Aracı şirket yok</option>','onchange="setTripCompany();previewTrip()"')+'<div class="text-xs text-slate-500 self-center">Şirket seçilince kayıtlı kesinti oranı otomatik uygulanır.</div>')+
@@ -55,13 +55,13 @@ function buildModals(){
   'Seferi kaydet')+
  modal('fuelModal','Yakıt kaydı','saveFuel',
   g2(fld('fuelDate','Tarih','date','required')+sel('fuelVehicle','Araç','',"required onchange=\"syncDriver('fuelVehicle','fuelDriver')\""))+
-  g2(sel('fuelDriver','Şoför','','required')+sel('fuelType','Yakıt Türü','<option value="CEKICI" data-short="Çekici">Çekici Mazotu</option><option value="FRIGO" data-short="Frigo">Frigo Dorse Mazotu</option><option value="ADBLUE" data-short="AdBlue">AdBlue</option>'))+
+  g2(sel('fuelDriver','Şoför','','required onchange="syncVehicle(\'fuelDriver\',\'fuelVehicle\')"')+sel('fuelType','Yakıt Türü','<option value="CEKICI" data-short="Çekici">Çekici Mazotu</option><option value="FRIGO" data-short="Frigo">Frigo Dorse Mazotu</option><option value="ADBLUE" data-short="AdBlue">AdBlue</option>'))+
   g3(fld('fuelLiters','Litre','number','required min="0.1" step="0.01" inputmode="decimal" oninput="calcFuel()"')+fld('fuelUnitPrice','Litre Fiyatı (₺)','number','required min="0.01" step="0.01" inputmode="decimal" oninput="calcFuel()"')+fld('fuelTotalCost','Toplam (₺)','number','required min="0.01" step="0.01" inputmode="decimal"'))+
   g2(fld('fuelOdometerKm','Araç Gösterge KM (çekici mazotunda zorunlu)','number','min="0" step="1" inputmode="numeric"')+fld('fuelStation','Petrol / İstasyon','text','list="stationSuggestions" placeholder="Opet Afyon / Shell"')),
   'Yakıtı kaydet')+
  modal('expenseModal','Gider kaydı','saveExpense',
   g2(fld('expDate','Tarih','date','required')+sel('expVehicle','Araç','',"required onchange=\"syncDriver('expVehicle','expDriver')\""))+
-  g2(sel('expDriver','Şoför','','required')+sel('expCategory','Kategori',CATS.map(c=>`<option>${esc(c)}</option>`).join(''),'required'))+
+  g2(sel('expDriver','Şoför','','required onchange="syncVehicle(\'expDriver\',\'expVehicle\')"')+sel('expCategory','Kategori',CATS.map(c=>`<option>${esc(c)}</option>`).join(''),'required'))+
   g2(fld('expAmount','Tutar (₺)','number','required min="0.01" step="0.01" inputmode="decimal"')+fld('expNote','Açıklama','text','required list="expenseNoteSuggestions" placeholder="İstanbul harcırahı"')),
   'Gideri kaydet')+
  modal('payModal','Tahsilat','savePayment',

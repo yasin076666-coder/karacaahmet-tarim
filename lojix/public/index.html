@@ -209,15 +209,18 @@
      </div>
     </div>
     <div data-admin data-writer class="card p-5 space-y-4">
-     <div class="lx-section-head"><div class="lx-section-icon"><svg class="ic"><use href="#i-users"/></svg></div><div class="flex-1"><h3 class="font-semibold">Kullanıcılar ve yetkiler</h3><p class="text-[13px] text-slate-500">İş ortağı (ör. Moonlog çalışanı) yalnızca kendi eklediği sefer, gider ve yakıtı görür, düzenler ve siler; sildikleri ve düzenledikleri 15 gün çöp kutusunda durur. Özet, cari, kâr ve diğer kayıtlar ona kapalıdır.</p></div></div>
+     <div class="lx-section-head"><div class="lx-section-icon"><svg class="ic"><use href="#i-users"/></svg></div><div class="flex-1"><h3 class="font-semibold">Kullanıcılar ve yetkiler</h3><p class="text-[13px] text-slate-500">Her kişiye bir rol verin. Yönetici her şeyi görür ve değiştirir; görüntüleyici yalnızca görür; iş ortağı kendi sefer, gider ve yakıtını; şoför yalnızca kendi yakıt ve giderini girer. İş ortağı ve şoförün sildiği ya da düzenlediği kayıtlar 15 gün çöp kutusunda durur; kimin ne girdiği kayıtlarda yazar.</p></div></div>
      <div id="users-list"></div>
-     <form id="partnerForm" onsubmit="addPartner(event)" class="grid gap-2 sm:grid-cols-[1fr_1fr_auto_auto]">
-      <input id="partnerName" class="inp" placeholder="Ad soyad" aria-label="Ad soyad" maxlength="80">
-      <input id="partnerEmail" class="inp" type="email" placeholder="E-posta" aria-label="E-posta" required>
-      <select id="partnerCompany" class="inp" aria-label="Bağlı olduğu aracı şirket"></select>
-      <button class="btn btn-primary" type="submit"><svg class="ic"><use href="#i-plus"/></svg>İş ortağı ekle</button>
+     <p id="users-note" class="text-[13px] text-slate-500"></p>
+     <form id="userForm" onsubmit="addUser(event)" class="grid gap-2 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_170px_1fr_auto]" hidden>
+      <input id="userName" class="inp" placeholder="Ad soyad" aria-label="Ad soyad" maxlength="80">
+      <input id="userEmail" class="inp" type="email" placeholder="E-posta" aria-label="E-posta" required>
+      <select id="userRole" class="inp" aria-label="Rol" onchange="userRoleChanged()"><option value="partner">İş ortağı</option><option value="driver">Şoför</option><option value="viewer">Görüntüleyici</option><option value="admin">Yönetici</option></select>
+      <div id="userCompanyBox"><select id="userCompany" class="inp" aria-label="Bağlı olduğu aracı şirket"></select></div>
+      <div id="userVehicleBox" hidden><select id="userVehicle" class="inp" aria-label="Şoförün aracı"></select></div>
+      <button class="btn btn-primary" type="submit"><svg class="ic"><use href="#i-plus"/></svg>Kullanıcı ekle</button>
      </form>
-     <p class="text-[12.5px] text-slate-500">Ad ve e-postayı yazıp ekleyin: giriş hesabı kendiliğinden açılır, kişiye parola belirleme bağlantısı gider. Parolasını belirleyip uygulamaya girdiğinde yalnızca kendi kayıtlarını görür. Yönetici: azzantalya, yasin · Yalnızca görüntüleme: bo039598.</p>
+     <p class="text-[12.5px] text-slate-500">Eklediğiniz kişinin giriş hesabı kendiliğinden açılır ve e-postasına parola belirleme bağlantısı gider. Rolü listeden değiştirebilir, çöp kutusu simgesiyle erişimini kaldırabilirsiniz; kaldırılan kişinin eklediği kayıtlar silinmez.</p>
     </div>
    </section>
 

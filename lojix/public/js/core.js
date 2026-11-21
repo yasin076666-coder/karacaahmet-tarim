@@ -12,7 +12,9 @@ const emptyState=msg=>`<div class="empty-state"><img class="logo-tile" src="img/
 const mlist=(id,items,msg)=>{const el=$(id);if(el)el.innerHTML=items.length?items.join(''):emptyState(msg)};
 const NEW_HINT='Sağ alttaki <b>+</b> düğmesiyle ya da <b>Söyle</b> diyerek ekleyin.';
 // Yönetici ekranında iş ortağının eklediği kayda "ekleyen" etiketi (ilk çizimde de tanımlı olmalı)
-const byBadge=r=>r&&r.createdByName&&r.createdBy&&!(window.LOJIX_WRITERS||[]).includes(r.createdBy)&&window.LX_ROLE!=='partner'?`<span class="pill bg-violet-100 text-violet-700">${esc(r.createdByName)}</span>`:'';
+const ROLE_TR={partner:'iş ortağı',driver:'şoför'};
+// Kimin girdiği: sınırlı roller (iş ortağı, şoför) mor, yöneticiler gri etiket. Sınırlı kullanıcı kendi ekranında görmez.
+const byBadge=r=>{if(!r||!r.createdByName||window.LX_ROLE==='partner'||window.LX_ROLE==='driver')return'';const lim=ROLE_TR[r.createdByRole];return`<span class="pill ${lim?'bg-violet-100 text-violet-700':'bg-slate-100 text-slate-600'}" title="Ekleyen">${esc(r.createdByName)}${lim?' · '+lim:''}</span>`};
 const rowActions=(col,id,label)=>`<div class="row-act flex justify-end gap-0.5"><button onclick="editRecord('${col}',${id})" class="btn btn-icon" title="Düzenle" aria-label="${label} düzenle">${ic('pencil')}</button><button onclick="delItem('${col}',${id})" class="btn btn-icon danger" title="Sil" aria-label="${label} sil">${ic('trash')}</button></div>`;
 // Kısa bildirim (alert yerine): ekranı kilitlemez, ekran okuyucuya duyurulur.
 function toast(msg,tone='ok'){let w=$('toasts');if(!w){w=document.createElement('div');w.id='toasts';w.setAttribute('role','status');w.setAttribute('aria-live','polite');document.body.appendChild(w)}const t=document.createElement('div');t.className='toast toast-'+tone;t.textContent=msg;w.appendChild(t);setTimeout(()=>{t.classList.add('out');setTimeout(()=>t.remove(),300)},tone==='error'?5000:3000)}
@@ -116,6 +118,8 @@ function populateSelects(){
  fill('eF-c','<option value="ALL">Tüm Kategoriler</option>'+CATS.map(c=>`<option>${esc(c)}</option>`).join(''));
 }
 function syncDriver(vs,ds){const v=state.vehicles.find(x=>x.id===$(vs).value);if(v)$(ds).value=v.driver}
+// Şoför seçilince aracı da o şoförün aracına çevir (araç seçilince şoförün gelmesinin tersi)
+function syncVehicle(ds,vs){const d=$(ds).value,cur=state.vehicles.find(x=>x.id===$(vs).value);if(cur&&cur.driver===d)return;const v=state.vehicles.find(x=>x.driver===d);if(!v||$(vs).disabled)return;$(vs).value=v.id;$(vs).dispatchEvent(new Event('change',{bubbles:true}))}
 
 /* ---------- Render ---------- */
 function renderDashboard(){

@@ -10,10 +10,11 @@
   const COLLS = Object.keys(KINDS);
   const BULK_DELETE_CONFIRM = 10;   // bundan çok silme tek seferde onaysız gitmez
   const BASE_KEY = 'LOJIX_SYNCED_V1';
-  const PARTNER_KINDS = ['trips', 'expenses', 'fuels'];   // iş ortağının yazabildiği türler
+  const LIMITS = { partner: ['trips', 'expenses', 'fuels'], driver: ['expenses', 'fuels'] };   // sınırlı rollerin kendi kayıt türleri
   const TRASH_DAYS = 15;
   const role = () => window.LX_ROLE || 'writer';
-  const allowed = key => role() !== 'partner' || PARTNER_KINDS.includes(key.slice(0, key.indexOf('/')));
+  const limits = () => LIMITS[role()] || null;
+  const allowed = key => !limits() || limits().includes(key.slice(0, key.indexOf('/')));
   let auth = null, db = null, user = null, unsubs = [], ready = false, busy = false, again = false;
   let base = {};    // 'tür/id' -> son eşitlenen kaydın kanonik JSON'u (cihazda saklanır)
   let remote = {};  // 'tür/id' -> sunucudaki kanonik JSON
@@ -56,7 +57,7 @@
       part.forEach(o => {
         const old = base[o.key];
         // Silinen kaydın ve iş ortağının düzenlediği kaydın eski hâli çöp kutusuna (15 gün)
-        if (old !== undefined && (o.json === null || role() === 'partner')) {
+        if (old !== undefined && (o.json === null || limits())) {
           const i = o.key.indexOf('/'), at = Date.now();
           batch.set(coll('trash').doc(`${o.key.slice(0, i)}_${o.key.slice(i + 1)}_${at}`), {
             kind: o.key.slice(0, i), recordId: o.key.slice(i + 1), action: o.json === null ? 'delete' : 'edit',
@@ -99,7 +100,7 @@
     if (!Object.keys(remote).length && role() === 'writer') { say('Eski bulut kaydı aktarılıyor…'); server = await legacyRemote(); }
     if (first) { try { localStorage.setItem(KEY + '_PRE_SYNC_BACKUP', JSON.stringify(state)); } catch (e) {} }
     let local = localMap();
-    if (role() === 'partner') {   // ortak: izinli türler cihazdan, diğerleri yalnızca buluttan
+    if (limits()) {   // sınırlı rol: izinli türler cihazdan, diğerleri yalnızca buluttan
       const l = {}; Object.keys(local).forEach(k => { if (allowed(k)) l[k] = local[k]; }); Object.keys(server).forEach(k => { if (!allowed(k)) l[k] = server[k]; }); local = l;
     }
     const keys = new Set([...Object.keys(local), ...Object.keys(server), ...Object.keys(base)]);
@@ -190,13 +191,13 @@
   function attach() {
     detach();
     base = loadBase(user.uid);
-    const P = role() === 'partner', list = P ? ['vehicles', 'clients', 'companies', ...PARTNER_KINDS] : COLLS;
+    const L = limits(), list = L ? ['vehicles', 'clients', 'companies', ...L] : COLLS;
     let pending = list.length, failed = false;
     say('Bulut kayıtları okunuyor…');
     if (role() === 'writer') watchTrash();
     list.forEach(k => {
       let first = true;
-      const q = P && PARTNER_KINDS.includes(k) ? coll(k).where('data.createdBy', '==', user.uid) : coll(k);
+      const q = L && L.includes(k) ? coll(k).where('data.createdBy', '==', user.uid) : coll(k);
       unsubs.push(q.onSnapshot(snap => {
         onRemote(k, snap);
         if (first) { first = false; if (--pending === 0 && !failed) initialMerge().catch(e => say('Bulut birleştirilemedi; cihazdaki kayıtlar korunuyor: ' + (e.message || e), 'error')); }
@@ -224,28 +225,29 @@
     const who = $('lojix-cloud-user'); if (who) who.textContent = signedIn ? (user.email || '') : '';
   }
   function setRole(r, info) {
-    window.LX_ROLE = r; window.LX_READONLY = r === 'viewer'; window.LX_PARTNER = r === 'partner' ? info : null;
+    window.LX_ROLE = r; window.LX_READONLY = r === 'viewer' || r === 'none'; window.LX_USER = info || null;
+    window.LX_OWNER = !!user && user.uid === window.LOJIX_OWNER; window.LX_PARTNER = r === 'partner' ? info : null;
     window.__lxUid = user ? user.uid : ''; window.__lxName = info && info.name || (user && user.email) || '';
-    document.body.classList.toggle('ro', r === 'viewer'); document.body.classList.toggle('partner', r === 'partner');
+    const c = document.body.classList;
+    c.toggle('ro', window.LX_READONLY); c.toggle('limited', r === 'partner' || r === 'driver'); c.toggle('partner', r === 'partner'); c.toggle('driver', r === 'driver'); c.toggle('owner', window.LX_OWNER);
     if (window.onRoleChange) window.onRoleChange(r);
   }
-  // Rol: yönetici (LOJIX_WRITERS) | iş ortağı (partners/{e-posta} belgesi) | görüntüleyici (diğer ekip; kural okumayı ekiple sınırlar)
+  // Rol: sahip (LOJIX_OWNER) | users/{e-posta} belgesindeki rol: admin → yönetici, viewer, partner, driver | belge yoksa erişim yok
+  const ROLE = { admin: 'writer', viewer: 'viewer', partner: 'partner', driver: 'driver' };
   async function authChanged(u) {
     user = u || null;
     ui(!!user);
     if (!user) { detach(); setRole('writer'); say('Giriş yapılmadı. Kayıtlar yalnızca bu cihazda tutuluyor.'); return; }
-    if ((window.LOJIX_WRITERS || []).includes(user.uid)) { setRole('writer'); return attach(); }
+    if (user.uid === window.LOJIX_OWNER) { setRole('writer', { name: 'Yasin', role: 'admin' }); return attach(); }
     let p = null;
-    try { const d = await db.collection('fleets').doc(FLEET).collection('partners').doc((user.email || '').toLowerCase()).get(); p = d.exists ? d.data() : null; } catch (e) {}
-    if (p) {
-      if (!user.emailVerified) {
-        setRole('partner', p); detach();
-        if (!authChanged.sent) { authChanged.sent = 1; user.sendEmailVerification().catch(() => {}); }
-        return say('E-posta adresiniz henüz doğrulanmadı. Doğrulama bağlantısı e-postanıza gönderildi; bağlantıya tıklayıp çıkış yapın ve yeniden giriş yapın.', 'error');
-      }
-      setRole('partner', p); return attach();
+    try { const d = await db.collection('fleets').doc(FLEET).collection('users').doc((user.email || '').toLowerCase()).get(); p = d.exists ? d.data() : null; } catch (e) {}
+    if (!p || !ROLE[p.role]) { detach(); setRole('none'); return say('Bu hesabın Lojix\'e erişim izni yok. Yöneticiden (Yasin) sizi Kullanıcılar listesine eklemesini isteyin.', 'error'); }
+    if (p.uid !== user.uid && !user.emailVerified) {
+      detach(); setRole('none', p);
+      if (!authChanged.sent) { authChanged.sent = 1; user.sendEmailVerification().catch(() => {}); }
+      return say('E-posta adresiniz henüz doğrulanmadı. Doğrulama bağlantısı e-postanıza gönderildi; bağlantıya tıklayıp çıkış yapın ve yeniden giriş yapın.', 'error');
     }
-    setRole('viewer'); attach();
+    setRole(ROLE[p.role], p); attach();
   }
   function init() {
     const cfg = window.LOJIX_FIREBASE_CONFIG;

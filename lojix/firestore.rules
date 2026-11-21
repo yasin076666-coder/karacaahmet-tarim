@@ -1,33 +1,28 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Lojix ekibi (Firebase Auth UID). Yeni kişi eklemek için UID'sini buraya yazıp kuralları yayınlayın.
-    function member() {
-      return request.auth != null && request.auth.uid in [
-        's8DnbccECcQEN8i48fqO5r68yky1',  // azzantalya@gmail.com
-        'kSPDmR5caBhnLXJQTJSVaTiuBcj2',  // bo039598@gmail.com
-        'yBvvM9DhzXaOzq77zh64mwIdF3l2'   // yasin07.6666@gmail.com
-      ];
-    }
+    // Sahip: kullanıcıları ekler, rol verir, erişimi kaldırır. Kimse sahibi kilitleyemesin diye burada sabit.
+    function owner() { return request.auth != null && request.auth.uid == 'yBvvM9DhzXaOzq77zh64mwIdF3l2'; }  // yasin07.6666@gmail.com
 
-    // Yazabilenler (kalan ekip yalnızca görür). Uygulamadaki LOJIX_WRITERS ile aynı tutun.
-    function writer() {
-      return request.auth != null && request.auth.uid in [
-        's8DnbccECcQEN8i48fqO5r68yky1',  // azzantalya@gmail.com
-        'yBvvM9DhzXaOzq77zh64mwIdF3l2'   // yasin07.6666@gmail.com
-      ];
+    // Diğer herkes: fleets/lojix/users/{e-posta} = { name, role: admin|viewer|partner|driver, uid?, company?, vehicleId? }
+    // Belgedeki uid girişle eşleşmeli ya da e-posta doğrulanmış olmalı (başkasının e-postasıyla açılan hesap erişemez).
+    function uref() { return /databases/$(database)/documents/fleets/lojix/users/$(request.auth.token.email); }
+    function udoc() { return get(uref()).data; }
+    function trusted() {
+      return request.auth != null && request.auth.token.email != null && exists(uref())
+        && (udoc().get('uid', '') == request.auth.uid || request.auth.token.email_verified == true);
     }
-
-    // İş ortağı (ör. Moonlog): fleets/lojix/partners/{e-posta} belgesi olan, e-postası doğrulanmış hesap.
-    // Yalnızca kendi eklediği sefer, gider ve yakıtı görür/değiştirir; araç, müşteri ve şirket listesini okur.
-    function partnerDoc() { return /databases/$(database)/documents/fleets/lojix/partners/$(request.auth.token.email); }
-    function partner() {
-      return request.auth != null && request.auth.token.email_verified == true && exists(partnerDoc());
-    }
+    function role() { return trusted() ? udoc().role : ''; }
+    function admin() { return owner() || role() == 'admin'; }
+    function member() { return admin() || role() == 'viewer'; }          // tüm filoyu okur
+    function limited() { return role() in ['partner', 'driver']; }       // yalnızca kendi kayıtları
     function own(d) { return d.data.createdBy == request.auth.uid; }
-    function partnerOk(kind, d) {
-      return kind in ['trips', 'expenses', 'fuels'] && own(d)
-        && (kind != 'trips' || d.data.intermediaryCompanyId == get(partnerDoc()).data.company);
+    function limitedOk(kind, d) {
+      return own(d) && (
+        (role() == 'partner' && kind in ['trips', 'expenses', 'fuels']
+          && (kind != 'trips' || d.data.intermediaryCompanyId == udoc().get('company', '')))
+        || (role() == 'driver' && kind in ['expenses', 'fuels']
+          && (udoc().get('vehicleId', '') == '' || d.data.vehicleId == udoc().vehicleId)));
     }
     function shape() {
       return request.resource.data.keys().hasOnly(['data', 'updatedAt', 'updatedBy'])
@@ -41,31 +36,33 @@ service cloud.firestore {
       function ok() { return fleet == 'lojix'
         && kind in ['vehicles', 'clients', 'trips', 'fuels', 'expenses', 'payments', 'companies']; }
       allow read: if ok() && (member()
-        || (partner() && (kind in ['vehicles', 'clients', 'companies'] || (kind in ['trips', 'expenses', 'fuels'] && own(resource.data)))));
-      allow delete: if ok() && (writer() || (partner() && partnerOk(kind, resource.data)));
+        || (limited() && (kind in ['vehicles', 'clients', 'companies'] || (kind in ['trips', 'expenses', 'fuels'] && own(resource.data)))));
+      allow delete: if ok() && (admin() || (limited() && limitedOk(kind, resource.data)));
       allow create: if ok() && shape() && string(request.resource.data.data.id) == docId
-        && (writer() || (partner() && partnerOk(kind, request.resource.data)));
+        && (admin() || (limited() && limitedOk(kind, request.resource.data)));
       allow update: if ok() && shape() && string(request.resource.data.data.id) == docId
-        && (writer() || (partner() && partnerOk(kind, resource.data) && partnerOk(kind, request.resource.data)));
+        && (admin() || (limited() && limitedOk(kind, resource.data) && limitedOk(kind, request.resource.data)));
     }
 
-    // İş ortağı tanımları: yönetici ekler/siler; ortak yalnızca kendi tanımını okur.
-    match /fleets/{fleet}/partners/{email} {
-      allow read: if fleet == 'lojix' && (member() || (request.auth != null && request.auth.token.email == email));
-      allow write: if fleet == 'lojix' && writer();
+    // Kullanıcılar: yalnız sahip yazar; yöneticiler listeyi görür; herkes kendi belgesini okur.
+    match /fleets/{fleet}/users/{email} {
+      allow read: if fleet == 'lojix' && (admin() || (request.auth != null && request.auth.token.email == email));
+      allow write: if fleet == 'lojix' && owner();
     }
 
-    // Çöp kutusu: silinen ve iş ortağının düzenlediği kayıtların eski hâli (15 gün). Yönetici görür ve geri alır.
+    // Çöp kutusu: silinen ve sınırlı kullanıcıların düzenlediği kayıtların eski hâli (15 gün). Yönetici görür ve geri alır.
     match /fleets/{fleet}/trash/{id} {
-      allow read, update, delete: if fleet == 'lojix' && writer();
+      allow read, update, delete: if fleet == 'lojix' && admin();
       allow create: if fleet == 'lojix' && request.resource.data.by == request.auth.uid
         && request.resource.data.at == request.time
-        && (writer() || (partner() && request.resource.data.data.createdBy == request.auth.uid));
+        && (admin() || (limited() && request.resource.data.data.createdBy == request.auth.uid));
     }
 
     // Eski tek belge: geçiş bitene kadar eski sürüm de yazabilir; yeni sürüm yalnızca okur.
     match /lojix_data/{documentId} {
-      allow read, write: if member();
+      allow read, write: if request.auth != null && request.auth.uid in [
+        's8DnbccECcQEN8i48fqO5r68yky1', 'kSPDmR5caBhnLXJQTJSVaTiuBcj2', 'yBvvM9DhzXaOzq77zh64mwIdF3l2'
+      ];
     }
 
     match /{document=**} { allow read, write: if false; }
