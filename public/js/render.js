@@ -148,7 +148,7 @@ function render(fSales, fPurchases, fExpenses) {
   document.getElementById('stat-purchases').textContent = formatMoney(totalPurchases);
   document.getElementById('stat-expenses').textContent = formatMoney(totalExpenses);
   document.getElementById('stat-net-profit').textContent = (netProfit >= 0 ? '+' : '') + formatMoney(netProfit);
-  document.getElementById('stat-net-profit').className = `text-sm sm:text-base font-bold mt-1 ${netProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`;
+  document.getElementById('stat-net-profit').className = `text-lg font-bold ${netProfit >= 0 ? 'text-emerald-700' : 'text-rose-600'}`;
   document.getElementById('stat-receivables').textContent = formatMoney(totalReceivable);
   document.getElementById('stat-debts').textContent = formatMoney(totalDebt);
 

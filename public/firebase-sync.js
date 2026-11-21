@@ -291,7 +291,7 @@
     const panel = $('firebase-panel'), toggle = $('fb-settings-toggle');
     panel.style.display = open ? 'block' : 'none';
     toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-    toggle.style.background = open ? '#334155' : '#0f172a';
+    toggle.style.background = open ? 'rgba(255,255,255,.28)' : '';
     if (open) panel.scrollTop = 0;
   }
   $('fb-settings-toggle').addEventListener('click', () => setCloudPanelOpen($('firebase-panel').style.display === 'none'));

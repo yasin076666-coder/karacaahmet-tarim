@@ -262,30 +262,82 @@ function asstReport(cmd) {
   if (cmd.metric === 'collected') return `${label} tahsilat: <b>${formatMoney(sum(sales.flatMap(r => r.payments).filter(p => inR(p.date)), p => p.amount))}</b>`;
   return `${label} satış: <b>${formatMoney(S)}</b> (${sales.filter(r => inR(r.date)).length} satış)`;
 }
-// Sesle söyleme: söylenen kutuda canlı görünür, susunca gönderilir; tekrar basınca durur.
+// ---------------- Sesle söyleme (iPhone uyumlu) ----------------
+// iPhone ara sonuçları birikimli verir ("kasada", "kasada ne", ...): parçalar tekrar etmeden birleşir.
+function asstMergeText(acc, next) {
+  acc = String(acc || '').trim(); next = String(next || '').trim();
+  if (!acc) return next;
+  if (!next) return acc;
+  const fa = asstFold(acc), fn = asstFold(next);
+  if (fn.startsWith(fa)) return next;        // yeni parça öncekini içeriyor
+  if (fa.includes(fn)) return acc;           // bu parça zaten var
+  return acc + ' ' + next;
+}
+// Birden fazla tahmin gelirse bilinen müşteri/ürün adlarıyla en iyi anlaşılanı seç.
+function asstBest(text, alts) {
+  if (!alts || alts.length < 2) return text;
+  const ctx = asstCtx(), known = n => n && [...ctx.customers, ...ctx.suppliers].some(c => fk(c) === fk(n));
+  const score = t => { const c = parseCommand(t, ctx); return (c.type !== 'unknown') * 2 + known(c.party) + ((c.items || []).filter(i => ctx.products.some(p => fk(p) === fk(i.prod))).length > 0); };
+  return [text, ...alts].reduce((b, t) => score(t) > score(b) ? t : b, text);
+}
+// iPhone sesli okumaya ilk kez yalnız bir dokunuşla izin verir. Kilit, mikrofon dışında bir yere ilk dokunuşta açılır:
+// mikrofona basarken okuma başlatılırsa iPhone sesi hoparlöre ayırır ve mikrofon boş dinler.
+(function () {
+  const unlock = e => {
+    if (e.target.closest && e.target.closest('#asst-mic')) return;
+    try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch (err) {}
+    document.removeEventListener('pointerup', unlock, true);
+  };
+  if (typeof window !== 'undefined' && window.speechSynthesis) document.addEventListener('pointerup', unlock, true);
+})();
+const ASST_SILENCE_MS = 2500, ASST_MAX_MS = 30000, ASST_NO_AUDIO_MS = 7000;
+const ASST_NO_AUDIO_HELP = 'Mikrofondan ses gelmiyor. iPhone’da Ayarlar → Genel → Klavye → <b>Dikte</b> açık olmalı ve bu uygulamaya mikrofon izni verilmiş olmalı. Ana ekrandan açtıysanız Safari’den de deneyin; ya da kutuya dokunup klavyedeki 🎤 ile söyleyin.';
 let asstRec = null;
 function asstListen() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition, inp = document.getElementById('asst-input'), btn = document.getElementById('asst-mic');
-  if (asstRec) { asstRec.stop(); return; }
-  const fallback = () => { asstSay('Bu ekranda doğrudan ses tanıma açılamadı. Kutuya dokunup klavyedeki 🎤 tuşuyla söyleyin, sonra gönderin.'); inp.focus(); };
+  if (asstRec) { asstRec.stop(); return; }                 // dinlerken tekrar basınca bitir ve gönder
+  const fallback = msg => { asstSay(msg || 'Bu ekranda doğrudan ses tanıma açılamadı. Kutuya dokunup klavyedeki 🎤 tuşuyla söyleyin, sonra gönderin.'); inp.focus(); };
   if (!SR) return fallback();
-  // iPhone sesli okumaya yalnız dokunuşla izin verir: dokunurken sessiz bir okuma ile kilidi aç
-  if (window.speechSynthesis && window.SpeechSynthesisUtterance) { try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch (e) {} }
-  const r = new SR(); r.lang = 'tr-TR'; r.interimResults = true; r.continuous = false; r.maxAlternatives = 1;
-  let done = false;
+  try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {} // okuma sürerken mikrofon ses alamaz
+  const r = new SR(); r.lang = 'tr-TR'; r.continuous = true; r.interimResults = true; r.maxAlternatives = 3;
+  let finalText = '', interim = '', alts = [], heard = false, sent = false, failed = false, silenceT = 0, noAudioT = 0, maxT = 0;
+  const timers = () => [silenceT, noAudioT, maxT].forEach(clearTimeout);
+  const live = on => {
+    btn.classList.toggle('mic-live', on); btn.classList.toggle('bg-rose-600', on); btn.classList.toggle('bg-emerald-600', !on);
+    btn.setAttribute('aria-label', on ? 'Dinlemeyi bitir ve gönder' : 'Sesle söyle');
+  };
+  const send = () => {
+    if (sent) return; sent = true; timers();
+    const text = asstMergeText(finalText, interim);
+    if (failed) return;
+    if (!text) { if (!heard) asstSay('Ses duyulmadı. Mikrofona basıp konuşun, bitirince susun.'); return; }
+    inp.value = asstBest(text, alts);
+    asstVoiceTurn = true;
+    try { runAssistant(); } finally { asstVoiceTurn = false; }
+  };
   r.onresult = e => {
-    const res = [...e.results], text = res.map(x => x[0].transcript).join(' ').trim();
-    inp.value = text;
-    if (res.length && res[res.length - 1].isFinal && !done) { done = true; asstVoiceTurn = true; try { runAssistant(); } finally { asstVoiceTurn = false; } }
+    heard = true; clearTimeout(noAudioT);
+    for (let i = e.resultIndex || 0; i < e.results.length; i++) {
+      const res = e.results[i];
+      if (res.isFinal) { finalText = asstMergeText(finalText, res[0].transcript); alts = [...res].map(a => a.transcript).filter(Boolean); }
+    }
+    // Ara sonuçlar her seferinde baştan kurulur: bazı iPhone sürümleri "bitti" işaretini hiç göndermez
+    interim = [...e.results].filter(x => !x.isFinal).reduce((acc, x) => asstMergeText(acc, x[0].transcript), '');
+    inp.value = asstMergeText(finalText, interim);
+    clearTimeout(silenceT); silenceT = setTimeout(() => r.stop(), ASST_SILENCE_MS); // susunca gönder
   };
-  r.onerror = e => { if (e.error === 'no-speech') asstSay('Ses duyulmadı, tekrar deneyin.'); else if (e.error !== 'aborted') fallback(); };
-  r.onend = () => {
-    asstRec = null; btn.classList.remove('animate-pulse', 'bg-rose-600'); btn.classList.add('bg-emerald-600');
-    if (!done && inp.value.trim()) { done = true; asstVoiceTurn = true; try { runAssistant(); } finally { asstVoiceTurn = false; } } // son parça "final" gelmeden bittiyse
+  r.onerror = e => {
+    if (e.error === 'aborted' || e.error === 'no-speech') return;
+    failed = true;
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') fallback('Mikrofon ya da konuşma tanıma izni yok. ' + ASST_NO_AUDIO_HELP);
+    else if (e.error === 'audio-capture') fallback('Mikrofon başka bir uygulama tarafından kullanılıyor olabilir. Kapatıp tekrar deneyin.');
+    else fallback();
   };
+  r.onend = () => { asstRec = null; live(false); send(); };
   try {
-    r.start(); asstRec = r; inp.value = '';
-    btn.classList.add('animate-pulse', 'bg-rose-600'); btn.classList.remove('bg-emerald-600');
+    r.start(); asstRec = r; inp.value = ''; live(true);
     asstSay('Dinliyorum… Bitirince susun ya da mikrofona tekrar basın.');
-  } catch (e) { asstRec = null; fallback(); }
+    noAudioT = setTimeout(() => { if (!heard) { failed = true; r.stop(); asstSay(ASST_NO_AUDIO_HELP); } }, ASST_NO_AUDIO_MS);
+    maxT = setTimeout(() => r.stop(), ASST_MAX_MS);
+  } catch (e) { asstRec = null; live(false); fallback(); }
 }

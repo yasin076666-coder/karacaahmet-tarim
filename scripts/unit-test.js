@@ -24,7 +24,7 @@ console.log('Birim testleri geçti.');
 // ---- Asistan ayrıştırıcısı ----
 const actx = {};
 vm.createContext(actx);
-vm.runInContext(fs.readFileSync(path.join(__dirname, '../public/js/assistant.js'), 'utf8') + '\nthis.parseCommand = parseCommand; this.asstSpeechText = asstSpeechText;', actx);
+vm.runInContext(fs.readFileSync(path.join(__dirname, '../public/js/assistant.js'), 'utf8') + '\nthis.parseCommand = parseCommand; this.asstSpeechText = asstSpeechText; this.asstMergeText = typeof asstMergeText === "function" ? asstMergeText : null;', actx);
 const C = { today: '2026-11-20', customers: ['Halil kardeşi', 'Halil', 'Kor ateş', 'Latif', 'Fatoş'], suppliers: ['Hal', 'Mehmet'], products: ['Kıvırcık', 'Lahana', 'Kara lahana', 'Maydanoz', 'Düz marul'] };
 const P = t => JSON.parse(JSON.stringify(actx.parseCommand(t, C)));
 const I = (prod, qty, unit, price) => ({ prod, qty, unit, price });
@@ -75,3 +75,13 @@ assert.strictEqual(ST('Bu ay: satış ₺12.500,00 − alış ₺3.000,50 − gi
 assert.strictEqual(ST('💵 Kasadaki nakit: <b>₺10.382,00</b>'), 'Kasadaki nakit: 10.382 lira');
 assert.strictEqual(ST('Bu ay en çok satılanlar: <br>1. <b>Kıvırcık</b> 20 adet · ₺500,00'), 'Bu ay en çok satılanlar: . 1. Kıvırcık 20 adet , 500 lira');
 console.log('Sesli okuma metni testleri geçti.');
+
+// ---- iPhone ses parçalarını birleştirme ----
+const MT = actx.asstMergeText;
+assert.ok(MT, 'asstMergeText tanımlı değil');
+assert.strictEqual(MT('kasada ne', 'kasada ne kadar'), 'kasada ne kadar');   // birikimli
+assert.strictEqual(MT('kasada ne kadar', 'kasada ne'), 'kasada ne kadar');   // eski parça tekrar geldi
+assert.strictEqual(MT('kasada ne kadar', 'var'), 'kasada ne kadar var');     // yeni parça
+assert.strictEqual(MT('', 'Halil'), 'Halil');
+assert.strictEqual(MT('Halil 500', 'halil 500 ödedi'), 'halil 500 ödedi');   // büyük/küçük harf farkı
+console.log('Ses parçası birleştirme testleri geçti.');

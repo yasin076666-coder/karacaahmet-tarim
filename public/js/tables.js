@@ -148,12 +148,12 @@ function buildChart() {
   data.forEach((d, i) => {
     const cx = L + gw * i + gw / 2;
     const bar = (v, x, col) => v > 0 ? `<rect x="${x}" y="${yy(v)}" width="${bw}" height="${Math.max(1, yy(0) - yy(v))}" rx="3" fill="${col}"/>` : '';
-    g += bar(d.s, cx - bw - 1, '#059669') + bar(d.c, cx + 1, '#d97706')
+    g += bar(d.s, cx - bw - 1, '#4A8427') + bar(d.c, cx + 1, '#D19A33')
       + `<text x="${cx}" y="${H - 8}" text-anchor="middle" font-size="10" fill="#64748b">${d.label}</text>`
       + `<rect x="${cx - gw / 2}" y="0" width="${gw}" height="${H}" fill="transparent" style="cursor:pointer" onclick="chartTip(${i})" onmouseenter="chartTip(${i})"/>`;
   });
   window.__chartData = data;
-  return `<div class="flex gap-3 text-[11px] text-slate-600 mb-1"><span class="flex items-center gap-1"><i class="inline-block w-2.5 h-2.5 rounded-sm" style="background:#059669"></i>Satış</span><span class="flex items-center gap-1"><i class="inline-block w-2.5 h-2.5 rounded-sm" style="background:#d97706"></i>Alış + Gider</span></div>`
+  return `<div class="flex gap-3 text-[11px] text-slate-600 mb-1"><span class="flex items-center gap-1"><i class="inline-block w-2.5 h-2.5 rounded-sm" style="background:#4A8427"></i>Satış</span><span class="flex items-center gap-1"><i class="inline-block w-2.5 h-2.5 rounded-sm" style="background:#D19A33"></i>Alış + Gider</span></div>`
     + `<svg viewBox="0 0 ${W} ${H}" class="w-full h-auto" role="img" aria-label="Son 6 ay satış ve maliyet grafiği">${g}</svg>`
     + `<div id="chart-tip" class="text-[11px] text-slate-700 bg-slate-50 rounded-xl px-2.5 py-1.5 mt-1"></div>`;
 }

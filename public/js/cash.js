@@ -15,13 +15,13 @@ function renderCash() {
   const rows = cashRows(), total = round2(rows.reduce((a, x) => a + x.amount, 0));
   const el = document.getElementById('cash-total');
   el.textContent = formatMoney(total);
-  el.className = 'text-2xl font-bold mt-1 ' + (total < 0 ? 'text-rose-400' : 'text-emerald-400');
+  el.className = 'text-[40px] leading-tight font-semibold tracking-tight ' + (total < 0 ? 'text-rose-300' : 'text-white');
   document.getElementById('cash-hint').textContent = !cashMoves.length ? 'Başlangıç nakdini "+ Giriş" ile ekle.' : (total < 0 ? 'Kasa eksiye düştü, giriş eksik olabilir.' : '');
   const G = [['tah', '➕ Müşteri tahsilatları'], ['giris', '➕ Kasa girişleri'], ['alis', '➖ Tedarikçi ödemeleri'], ['gider', '➖ Nakit giderler'], ['kart', '➖ Kart borcu ödemeleri'], ['cikis', '➖ Kasa çıkışları']];
   const sum = g => round2(rows.filter(x => x.g === g).reduce((a, x) => a + x.amount, 0));
   document.getElementById('cash-detail').innerHTML =
     '<div class="space-y-1">' + G.map(([g, l]) => `<div class="flex justify-between text-slate-300"><span>${l}</span><span class="font-semibold">${formatMoney(Math.abs(sum(g)))}</span></div>`).join('') + '</div>' +
-    '<div class="pt-2 border-t border-slate-700 space-y-1">' + (rows.slice(0, 30).map(x => `<div class="flex justify-between gap-2"><div class="min-w-0"><span class="text-[10px] text-slate-500">${formatDate(x.date)}</span> <span class="text-slate-300 break-words">${esc(x.label)}</span></div><div class="shrink-0 flex gap-1"><span class="font-bold ${x.amount >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${x.amount >= 0 ? '+' : '-'}${formatMoney(Math.abs(x.amount))}</span>${x.del ? `<button onclick="delCash('${esc(x.del)}')" class="text-slate-500 px-1">×</button>` : ''}</div></div>`).join('') || '<span class="text-slate-500">Henüz hareket yok.</span>') + '</div>' +
+    '<div class="pt-2 border-t border-slate-700 space-y-1">' + (rows.slice(0, 30).map(x => `<div class="flex justify-between gap-2"><div class="min-w-0"><span class="text-[10px] text-slate-400">${formatDate(x.date)}</span> <span class="text-slate-300 break-words">${esc(x.label)}</span></div><div class="shrink-0 flex gap-1"><span class="font-bold ${x.amount >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${x.amount >= 0 ? '+' : '-'}${formatMoney(Math.abs(x.amount))}</span>${x.del ? `<button onclick="delCash('${esc(x.del)}')" class="text-slate-500 px-1">×</button>` : ''}</div></div>`).join('') || '<span class="text-slate-500">Henüz hareket yok.</span>') + '</div>' +
     (rows.length > 30 ? '<p class="text-[10px] text-slate-500">Son 30 hareket gösteriliyor.</p>' : '');
 }
 function openCashModal(sign) {
