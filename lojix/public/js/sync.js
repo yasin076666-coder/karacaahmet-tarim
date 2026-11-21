@@ -238,7 +238,11 @@
     let p = null;
     try { const d = await db.collection('fleets').doc(FLEET).collection('partners').doc((user.email || '').toLowerCase()).get(); p = d.exists ? d.data() : null; } catch (e) {}
     if (p) {
-      if (!user.emailVerified) { setRole('partner', p); detach(); return say('E-posta adresiniz henüz doğrulanmadı. E-postanıza gelen bağlantıyla parolanızı belirleyin ya da hesabı doğrulayın, sonra yeniden giriş yapın.', 'error'); }
+      if (!user.emailVerified) {
+        setRole('partner', p); detach();
+        if (!authChanged.sent) { authChanged.sent = 1; user.sendEmailVerification().catch(() => {}); }
+        return say('E-posta adresiniz henüz doğrulanmadı. Doğrulama bağlantısı e-postanıza gönderildi; bağlantıya tıklayıp çıkış yapın ve yeniden giriş yapın.', 'error');
+      }
       setRole('partner', p); return attach();
     }
     setRole('viewer'); attach();

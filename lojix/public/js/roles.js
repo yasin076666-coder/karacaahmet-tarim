@@ -87,7 +87,7 @@
     try {
       const snap = await partners().get(), rows = [];
       snap.forEach(d => rows.push({ email: d.id, ...d.data() }));
-      el.innerHTML = rows.length ? rows.map(p => `<div class="flex items-center gap-3 py-2.5 border-b border-slate-200 last:border-0"><span class="sheet-ic bg-violet-100 text-violet-700">${ic('user')}</span><div class="min-w-0 flex-1"><b class="font-semibold">${esc(p.name || p.email)}</b><div class="text-[13px] text-slate-500 truncate">${esc(p.email)} · İş ortağı · ${esc((state.intermediaryCompanies.find(c => c.id === p.company) || {}).name || p.company)}</div></div><button class="btn btn-icon danger" title="Yetkiyi kaldır" aria-label="${esc(p.email)} yetkisini kaldır" onclick="removePartner('${esc(p.email)}')">${ic('trash')}</button></div>`).join('')
+      el.innerHTML = rows.length ? rows.map(p => `<div class="flex items-center gap-3 py-2.5 border-b border-slate-200 last:border-0"><span class="sheet-ic bg-violet-100 text-violet-700">${ic('user')}</span><div class="min-w-0 flex-1"><b class="font-semibold">${esc(p.name || p.email)}</b><div class="text-[13px] text-slate-500 truncate">${esc(p.email)} · İş ortağı · ${esc((state.intermediaryCompanies.find(c => c.id === p.company) || {}).name || p.company)}</div></div><button class="btn btn-icon" title="Parola bağlantısını yeniden gönder" aria-label="${esc(p.email)} için bağlantıyı yeniden gönder" onclick="resendPartnerLink('${esc(p.email)}')">${ic('send')}</button><button class="btn btn-icon danger" title="Yetkiyi kaldır" aria-label="${esc(p.email)} yetkisini kaldır" onclick="removePartner('${esc(p.email)}')">${ic('trash')}</button></div>`).join('')
         : '<p class="text-sm text-slate-500">Henüz iş ortağı yok.</p>';
     } catch (e) { el.innerHTML = `<p class="text-sm text-rose-600">Kullanıcılar okunamadı: ${esc(e.message)}</p>`; }
   };
@@ -96,8 +96,33 @@
     const email = val('partnerEmail').trim().toLowerCase(), name = val('partnerName').trim(), company = val('partnerCompany');
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return toast('Geçerli bir e-posta yazın.', 'error');
     if (email === ((firebase.auth().currentUser || {}).email || '').toLowerCase()) return toast('Kendi hesabınızı iş ortağı yapamazsınız.', 'error');
-    try { await partners().doc(email).set({ name: name || email, company, addedBy: window.__lxUid, addedAt: firebase.firestore.FieldValue.serverTimestamp() }); $('partnerForm').reset(); delete $('partnerCompany').dataset.set; toast(`${name || email} iş ortağı olarak eklendi.`); renderUsers(); }
-    catch (err) { toast('Eklenemedi: ' + err.message, 'error'); }
+    const btn = e.submitter || $('partnerForm').querySelector('button'); btn.disabled = true;
+    try {
+      await partners().doc(email).set({ name: name || email, company, addedBy: window.__lxUid, addedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      const made = await ensureAccount(email);
+      $('partnerForm').reset(); delete $('partnerCompany').dataset.set;
+      toast(`${name || email} eklendi. ${made ? 'Giriş hesabı açıldı; ' : ''}parola belirleme bağlantısı ${email} adresine gönderildi.`);
+      renderUsers();
+    } catch (err) { toast('Eklenemedi: ' + err.message, 'error'); }
+    finally { btn.disabled = false; }
+  };
+  // Giriş hesabını ikinci bir Firebase örneğiyle açar: yöneticinin oturumu kapanmaz. Parola rastgeledir ve
+  // hiç gösterilmez; kişi e-postadaki bağlantıyla kendi parolasını belirler (bağlantı e-postayı da doğrular).
+  async function ensureAccount(email) {
+    const app = firebase.apps.find(a => a.name === 'lx-admin') || firebase.initializeApp(window.LOJIX_FIREBASE_CONFIG, 'lx-admin');
+    const a2 = app.auth();
+    if (window.LX_EMULATOR && !a2.__emu) { a2.useEmulator('http://localhost:9099'); a2.__emu = 1; }
+    await a2.setPersistence(firebase.auth.Auth.Persistence.NONE);
+    const pw = Array.from(crypto.getRandomValues(new Uint8Array(24)), x => 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!#%'[x % 59]).join('');
+    let made = false;
+    try { await a2.createUserWithEmailAndPassword(email, pw); made = true; await a2.signOut(); }
+    catch (err) { if (err.code !== 'auth/email-already-in-use') throw err; }   // hesap zaten varsa yalnız bağlantı gider
+    await firebase.auth().sendPasswordResetEmail(email);
+    return made;
+  }
+  window.resendPartnerLink = async function (email) {
+    try { await firebase.auth().sendPasswordResetEmail(email); toast('Parola belirleme bağlantısı yeniden gönderildi: ' + email); }
+    catch (err) { toast('Gönderilemedi: ' + err.message, 'error'); }
   };
   window.removePartner = async function (email) {
     if (!confirm(email + ' iş ortağı yetkisi kaldırılsın mı? Eklediği kayıtlar silinmez.')) return;

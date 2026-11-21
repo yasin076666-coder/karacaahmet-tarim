@@ -175,7 +175,25 @@ async function run() {
     check(await until(Pp, async () => (await st(Pp)).expenses.some(e => e.note === 'ortak gideri')), 'Yönetici geri aldı, gider ortağın listesine de döndü');
     check(await until(A, async () => (await A.evaluate(() => window.__lxTrash.length)) === trashN - 1), 'Geri alınan kayıt çöp kutusundan çıktı');
 
-    for (const p of [A, B, X, Rp, Pp]) check(!p.errs.length, 'Sayfa hatası yok ' + p.errs.join(' | '));
+    console.log('8) İkinci iş ortağını yönetici kendisi ekler: hesap açılır, parola bağlantısı gider');
+    const E2 = 'ikinci@moonlog.test';
+    await A.evaluate(() => switchTab('settings'));
+    await A.fill('#partnerName', 'İkinci Ortak'); await A.fill('#partnerEmail', E2); await A.selectOption('#partnerCompany', 'IC_MOONLOG');
+    await A.locator('#partnerForm').evaluate(f => f.requestSubmit());
+    check(await until(A, async () => (await A.textContent('#toasts')).includes('Giriş hesabı açıldı')), 'Hesap açıldı bildirimi');
+    check(await A.evaluate(() => firebase.auth().currentUser.email) === USERS.a[1], 'Yöneticinin oturumu kapanmadı');
+    const codes = (await req('GET', `${EMU}:9099/emulator/v1/projects/${PROJECT}/oobCodes`)).oobCodes || [];
+    const rcode = codes.filter(c => c.email === E2 && c.requestType === 'PASSWORD_RESET').pop();
+    check(!!rcode, 'Parola belirleme bağlantısı gönderildi');
+    await req('POST', `${EMU}:9099/identitytoolkit.googleapis.com/v1/accounts:resetPassword?key=x`, { oobCode: rcode.oobCode, newPassword: 'yeniParola1' });
+    const P2 = await phone(b, 'P2', null);
+    await P2.evaluate(() => switchTab('settings'));
+    await P2.fill('#lojix-cloud-email', E2); await P2.fill('#lojix-cloud-password', 'yeniParola1'); await P2.click('#lojix-cloud-login');
+    check(await until(P2, async () => (await status(P2)).startsWith('Eşitlendi')), 'İkinci ortak kendi parolasıyla girdi: ' + await status(P2));
+    check(await P2.evaluate(() => window.LX_ROLE === 'partner' && firebase.auth().currentUser.emailVerified), 'Bağlantı e-postayı doğruladı, rol iş ortağı');
+    check((await st(P2)).trips.length === 0, 'İkinci ortak birinci ortağın seferlerini görmüyor');
+
+    for (const p of [A, B, X, Rp, Pp, P2]) check(!p.errs.length, 'Sayfa hatası yok ' + p.errs.join(' | '));
   } catch (e) { console.error(e); fails++; }
   await b.close();
   console.log(fails ? `\n${fails} kontrol BAŞARISIZ` : '\nTüm kontroller geçti');
