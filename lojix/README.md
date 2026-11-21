@@ -10,7 +10,7 @@ Frigo tır filosu için sefer, navlun, yakıt, gider, cari ve bakım takibi. Fir
 
 ## Veri
 Ekip ortak filoyu kullanır. Her kayıt ayrı Firestore belgesi: `fleets/lojix/{vehicles|clients|trips|fuels|expenses|payments|companies}/{kayıtId}`.
-Erişim `firestore.rules` içindeki UID listesiyle sınırlı. Eski tek belge `lojix_data/1`, bulut boşken ilk girişte bir kez içe alınır.
+Erişim: sahip (`firestore.rules` owner) ve `fleets/lojix/users/{e-posta}` rolleri (yönetici, görüntüleyici, iş ortağı, şoför). Eski tek belge `lojix_data/1` 21 Kasım 2026 canlıya geçişte silindi.
 
 ## Komutlar
 ```bash
