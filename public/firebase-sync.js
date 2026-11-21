@@ -1,4 +1,4 @@
-/* Karacaahmet Tarım bulut eşitlemesi.
+/* Hesap Defterim bulut eşitlemesi.
    Her kayıt ayrı belgedir: users/{uid}/{tür}/{kayıtId} = { ownerUid, data, updatedAt }.
    Cihazdaki veri (yerel), buluttaki veri (sunucu) ve son eşitlenen hâl (taban) üçlü karşılaştırılır;
    böylece çevrimdışı eklenen kayıt yüklenir, öbür telefonda silinen kayıt burada da silinir. */
