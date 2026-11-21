@@ -390,4 +390,6 @@ body.driver #side [data-tab=trips], body.driver #mnav [data-tab=trips], body.dri
 /* Çöp kutusu ve kullanıcı listesi yalnız yöneticide */
 body.ro [data-tab=trash], body.limited [data-tab=trash], body.ro [data-writer] { display: none !important; }
 [hidden] { display: none !important; }
+/* Kullanıcılar bölümü yalnız sahipte (Yasin) */
+body:not(.owner) [data-owner] { display: none !important; }
 s { color: var(--faint); }

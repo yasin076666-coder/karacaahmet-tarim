@@ -143,7 +143,10 @@ async function run() {
     await B.locator('#userForm').evaluate(f => f.requestSubmit());
     check(await until(B, async () => (await B.textContent('#users-list')).includes(USERS_P_EMAIL)), 'Sahip iş ortağını ekledi');
     await A.evaluate(() => { switchTab('settings'); renderUsers(); });
-    check(await until(A, async () => (await A.textContent('#users-list')).includes(USERS_P_EMAIL)) && await A.evaluate(() => document.getElementById('userForm').hidden), 'Yönetici listeyi görüyor ama kullanıcı ekleyemiyor');
+    await A.waitForTimeout(500);
+    check(await A.evaluate(() => getComputedStyle(document.querySelector('[data-owner]')).display === 'none' && !document.getElementById('users-list').textContent.trim()), 'Yönetici Kullanıcılar bölümünü hiç görmüyor');
+    const rd2 = await A.evaluate(async () => { try { await firebase.firestore().collection('fleets').doc('lojix').collection('users').get(); return 'okudu'; } catch (e) { return e.code; } });
+    check(rd2 === 'permission-denied', 'Kural: sahip dışında kimse kullanıcı listesini okuyamaz');
     const wr = await A.evaluate(async () => { try { await firebase.firestore().collection('fleets').doc('lojix').collection('users').doc('kotu@test.com').set({ role: 'admin' }); return 'yazdı'; } catch (e) { return e.code; } });
     check(wr === 'permission-denied', 'Kural: sahip dışında kimse kullanıcı/rol ekleyemez');
     const Pp = await phone(b, 'P', null);

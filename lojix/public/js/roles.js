@@ -90,7 +90,7 @@
   };
   window.trashPurge = function (id) { if (confirm('Bu kayıt çöp kutusundan kalıcı olarak silinsin mi?')) { window.lxTrashDelete(id); toast('Kalıcı olarak silindi.'); } };
 
-  // ---- Kullanıcılar ve yetkiler: liste yöneticilere görünür, değişiklik yalnız sahipte ----
+  // ---- Kullanıcılar ve yetkiler: yalnız sahip (Yasin) görür, ekler, rol değiştirir, kaldırır ----
   const users = () => firebase.firestore().collection('fleets').doc('lojix').collection('users');
   window.userRoleChanged = function () {   // seçilen role göre şirket / araç alanını göster
     const r = val('userRole');
@@ -98,9 +98,10 @@
   };
   window.renderUsers = async function () {
     const el = $('users-list'); if (!el) return;
-    if (R() !== 'writer' || !window.__lxUid) { el.innerHTML = '<p class="text-sm text-slate-500">Kullanıcıları görmek için yönetici hesabıyla buluta giriş yapın.</p>'; $('userForm').hidden = true; return; }
-    const own = !!window.LX_OWNER;
-    $('userForm').hidden = !own; $('users-note').textContent = own ? '' : 'Kullanıcı ekleme, rol değiştirme ve erişim kaldırma yalnızca sahipte (Yasin).';
+    // Bölüm yalnız sahipte görünür (CSS: data-owner); başkasında hiç çizilmez
+    if (!window.LX_OWNER) { el.innerHTML = ''; $('userForm').hidden = true; return; }
+    const own = true;
+    $('userForm').hidden = false; $('users-note').textContent = '';
     fill('userCompany', state.intermediaryCompanies.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join(''));
     if (!$('userCompany').dataset.set) { const m = state.intermediaryCompanies.find(c => /moonlog/i.test(c.name)); if (m) $('userCompany').value = m.id; $('userCompany').dataset.set = 1; }
     fill('userVehicle', '<option value="">Araç atanmasın (her araca girebilir)</option>' + state.vehicles.map(v => `<option value="${esc(v.id)}">${esc(v.plate)} · ${esc(v.driver)}</option>`).join(''));

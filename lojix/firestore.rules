@@ -44,9 +44,9 @@ service cloud.firestore {
         && (admin() || (limited() && limitedOk(kind, resource.data) && limitedOk(kind, request.resource.data)));
     }
 
-    // Kullanıcılar: yalnız sahip yazar; yöneticiler listeyi görür; herkes kendi belgesini okur.
+    // Kullanıcılar: listeyi yalnız sahip görür ve değiştirir; diğer herkes yalnızca kendi belgesini (rolünü) okur.
     match /fleets/{fleet}/users/{email} {
-      allow read: if fleet == 'lojix' && (admin() || (request.auth != null && request.auth.token.email == email));
+      allow read: if fleet == 'lojix' && (owner() || (request.auth != null && request.auth.token.email == email));
       allow write: if fleet == 'lojix' && owner();
     }
 
