@@ -34,7 +34,12 @@ async function reset() {
 const fv = v => v === null || v === undefined ? { nullValue: null } : Array.isArray(v) ? { arrayValue: { values: v.map(fv) } }
   : typeof v === 'object' ? { mapValue: { fields: Object.fromEntries(Object.entries(v).map(([k, x]) => [k, fv(x)])) } }
   : typeof v === 'number' ? (Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v }) : typeof v === 'boolean' ? { booleanValue: v } : { stringValue: String(v) };
-async function putLegacy(data) { await req('PATCH', fsUrl('/lojix_data/1'), { fields: { data: fv(data), updated_at: fv('2026-10-23T00:00:00Z') } }, OWNER); }
+// Bulutta hazır filo: her kaydı fleets/lojix/{tür}/{id} belgesine yazar (müşteriler telefonda addan türetilir)
+async function seedFleet(d) {
+  const kinds = { vehicles: d.vehicles, trips: d.trips, fuels: d.fuels, expenses: d.expenses, payments: d.payments, companies: d.intermediaryCompanies };
+  const writes = Object.entries(kinds).flatMap(([k, list]) => list.map(r => ({ update: { name: `projects/${PROJECT}/databases/(default)/documents/fleets/lojix/${k}/${r.id}`, fields: { data: fv(r), updatedBy: fv('seed') } }, updateTransforms: [{ fieldPath: 'updatedAt', setToServerValue: 'REQUEST_TIME' }] })));
+  await req('POST', `${EMU}:8080/v1/projects/${PROJECT}/databases/(default)/documents:commit`, { writes }, OWNER);
+}
 async function countDocs(kind) { const r = await req('GET', fsUrl(`/fleets/lojix/${kind}?pageSize=300`), null, OWNER); return (r.documents || []).length; }
 
 http.createServer((q, res) => {
@@ -44,7 +49,7 @@ http.createServer((q, res) => {
 
 async function phone(b, name, local) {
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 } });
-  await ctx.addInitScript(s => { window.LX_EMULATOR = true; if (!sessionStorage.x) { localStorage.clear(); if (s) localStorage.setItem('FRIGO_FILO_PRO_V1', s); sessionStorage.x = 1; } }, local ? JSON.stringify(local) : null);
+  await ctx.addInitScript(s => { window.LX_EMULATOR = true; window.LX_SYNC_SKEW = 1500; if (!sessionStorage.x) { localStorage.clear(); if (s) localStorage.setItem('FRIGO_FILO_PRO_V1', s); sessionStorage.x = 1; } }, local ? JSON.stringify(local) : null);
   const p = await ctx.newPage();
   p.errs = []; p.dialogs = [];
   p.on('pageerror', e => p.errs.push(e.message));
@@ -70,10 +75,8 @@ async function run() {
   const b = await chromium.launch();
   try {
     await reset();
-    console.log('1) Eski tek belge bulutta, yeni sürümün ilk girişi onu taşır');
-    const legacy = JSON.parse(JSON.stringify(seed));
-    legacy.clients = [{ id: 'C1', name: 'Akdeniz Sebze A.Ş.' }];   // eski sürüm sıra numaralı kimlik kullanıyordu
-    await putLegacy(legacy);
+    console.log('1) Bulutta hazır filo var, yeni telefon ilk kez bağlanır');
+    await seedFleet(seed);
     // A telefonunda bulutta olmayan bir yerel kayıt ve buluttakinden farklı bir sefer var
     const localA = JSON.parse(JSON.stringify(seed));
     localA.expenses.push({ id: 1799999999999, date: '2026-11-17', vehicleId: 'V0', driver: 'Ahmet Yılmaz', category: 'Lastik & Kaplama', amount: 9000, note: 'yalnız A telefonunda' });
@@ -113,6 +116,8 @@ async function run() {
     await A.reload({ waitUntil: 'load' });
     check(await until(A, async () => (await status(A)).startsWith('Eşitlendi')), 'A yeniden eşitlendi');
     check(await countDocs('trips') === before && (await st(A)).trips.length === before, `Sefer sayısı değişmedi: ${before}`);
+    const r4 = await A.evaluate(() => ({ inc: window.__lxIncremental, reads: window.__lxReads }));
+    check(r4.inc && r4.reads < 10, `Yeniden açılışta artımlı eşitleme, okunan belge: ${r4.reads} (toplam ${before + 70}+)`);
 
     console.log('5) Ekipte olmayan hesap verilere erişemez');
     const X = await phone(b, 'X', null);
@@ -236,6 +241,30 @@ async function run() {
     check(await until(B, async () => !(await B.textContent('#users-list')).includes(ED)), 'Sahip şoförün erişimini kaldırdı');
     await D.reload({ waitUntil: 'load' });
     check(await until(D, async () => (await status(D)).includes('erişim izni yok')), 'Erişimi kaldırılan şoför giremiyor: ' + await status(D));
+
+    console.log('10) Artımlı eşitleme: kapalı telefon açılınca silinen, düzenlenen, eklenen ve geri alınan kayıtları alır');
+    await B.evaluate(() => firebase.auth().signOut());
+    await B.waitForTimeout(500);
+    const t10 = (await st(A)).trips, del = t10[0].id, ed = t10[1].id, rst = t10[2].id;
+    await A.evaluate(id => delItem('trips', id), del);
+    await A.evaluate(id => editRecord('trips', id), ed); await A.fill('#tripPrice', '77777'); await A.locator('#tripModal-form').evaluate(f => f.requestSubmit());
+    await addExpense(A, 4321, 'kapalıyken eklenen');
+    await A.evaluate(id => delItem('trips', id), rst);
+    await A.waitForTimeout(800);
+    const trId = await A.evaluate(id => { const t = window.__lxTrash.find(x => x.action === 'delete' && String(x.recordId) === String(id)); return t && t.id; }, rst);
+    await A.evaluate(id => trashRestore(id), trId);
+    await A.waitForTimeout(1500);
+    check(await signIn(B, 'b'), 'B yeniden girdi: ' + await status(B));
+    const sb = await st(B), r10 = await B.evaluate(() => ({ inc: window.__lxIncremental, reads: window.__lxReads }));
+    check(r10.inc, 'B artımlı eşitleme yaptı');
+    check(!sb.trips.some(t => t.id === del), 'Kapalıyken silinen sefer B\'den de silindi');
+    check(sb.trips.find(t => t.id === ed).price === 77777, 'Kapalıyken düzenlenen sefer güncellendi');
+    check(sb.expenses.some(e => e.note === 'kapalıyken eklenen'), 'Kapalıyken eklenen gider geldi');
+    check(sb.trips.some(t => t.id === rst), 'Silinip geri alınan sefer yerinde');
+    check(r10.reads < 15, 'Okunan belge sayısı küçük: ' + r10.reads);
+    check(JSON.stringify(sb.trips.map(t => t.id).sort()) === JSON.stringify((await st(A)).trips.map(t => t.id).sort()), 'B ve A sefer listeleri aynı');
+    await B.evaluate(() => document.getElementById('lojix-cloud-refresh').click());
+    check(await until(B, async () => (await status(B)).startsWith('Eşitlendi') && !(await B.evaluate(() => window.__lxIncremental))), '"Yeniden eşitle" tam okuma yapar');
 
     for (const p of [A, B, X, Rp, Pp, P2, D]) check(!p.errs.length, 'Sayfa hatası yok ' + p.errs.join(' | '));
   } catch (e) { console.error(e); fails++; }

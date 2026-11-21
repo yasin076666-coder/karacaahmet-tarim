@@ -50,6 +50,14 @@ service cloud.firestore {
       allow write: if fleet == 'lojix' && owner();
     }
 
+    // Silme işaretleri: artımlı eşitlemede kapalı telefon da silinen kaydı öğrensin diye (60 gün tutulur).
+    match /fleets/{fleet}/deleted/{id} {
+      allow read: if fleet == 'lojix' && member();
+      allow create, update: if fleet == 'lojix' && request.resource.data.by == request.auth.uid && request.resource.data.at == request.time
+        && (admin() || (limited() && request.resource.data.createdBy == request.auth.uid));
+      allow delete: if fleet == 'lojix' && admin();
+    }
+
     // Çöp kutusu: silinen ve sınırlı kullanıcıların düzenlediği kayıtların eski hâli (15 gün). Yönetici görür ve geri alır.
     match /fleets/{fleet}/trash/{id} {
       allow read, update, delete: if fleet == 'lojix' && admin();
