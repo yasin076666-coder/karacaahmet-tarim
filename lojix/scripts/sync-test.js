@@ -5,10 +5,11 @@ const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 const seed = JSON.parse(fs.readFileSync(path.join(__dirname, 'seed.json'), 'utf8'));
 const dir = path.join(__dirname, '..', 'public');
+const USERS_P_EMAIL = 'ortak@moonlog.test';
 const PROJECT = 'lojix-pro', EMU = 'http://localhost', PASS = 'test1234';
 // Kurallardaki gerçek ekip UID'leri + üye olmayan biri
 // a ve b yazabilir; r ekipte ama yalnızca görür; x ekip dışı
-const USERS = { a: ['s8DnbccECcQEN8i48fqO5r68yky1', 'a@test.com'], b: ['yBvvM9DhzXaOzq77zh64mwIdF3l2', 'b@test.com'], r: ['kSPDmR5caBhnLXJQTJSVaTiuBcj2', 'r@test.com'], x: ['yabanciUid000000000000000000', 'x@test.com'] };
+const USERS = { a: ['s8DnbccECcQEN8i48fqO5r68yky1', 'a@test.com'], b: ['yBvvM9DhzXaOzq77zh64mwIdF3l2', 'b@test.com'], r: ['kSPDmR5caBhnLXJQTJSVaTiuBcj2', 'r@test.com'], x: ['yabanciUid000000000000000000', 'x@test.com'], p: ['ortakUid00000000000000000001', 'ortak@moonlog.test'] };
 let fails = 0;
 const check = (ok, msg) => { console.log((ok ? '  ✔ ' : '  ✘ ') + msg); if (!ok) fails++; };
 const type = f => ({ js: 'text/javascript', css: 'text/css', png: 'image/png', webmanifest: 'application/manifest+json' })[f.split('.').pop()] || 'text/html';
@@ -24,7 +25,7 @@ async function reset() {
   await req('DELETE', `${EMU}:8080/emulator/v1/projects/${PROJECT}/databases/(default)/documents`);
   await req('DELETE', `${EMU}:9099/emulator/v1/projects/${PROJECT}/accounts`);
   await req('POST', `${EMU}:9099/identitytoolkit.googleapis.com/v1/projects/${PROJECT}/accounts:batchCreate`,
-    { users: Object.values(USERS).map(([localId, email]) => ({ localId, email, rawPassword: PASS })) }, OWNER);
+    { users: Object.values(USERS).map(([localId, email]) => ({ localId, email, rawPassword: PASS, emailVerified: true })) }, OWNER);
 }
 // Eski tek belgeyi (lojix_data/1) emülatöre yazar: Firestore REST değer biçimine çevirir.
 const fv = v => v === null || v === undefined ? { nullValue: null } : Array.isArray(v) ? { arrayValue: { values: v.map(fv) } }
@@ -133,7 +134,48 @@ async function run() {
     await addExpense(A, 321, 'A yeni gider');
     check(await until(Rp, async () => (await st(Rp)).expenses.some(e => e.note === 'A yeni gider')), 'Yazabilen hesabın kaydı görüntüleme hesabına canlı geldi');
 
-    for (const p of [A, B, X, Rp]) check(!p.errs.length, 'Sayfa hatası yok ' + p.errs.join(' | '));
+    console.log('7) İş ortağı (Moonlog): kendi kayıtları, kısıtlı ekran, çöp kutusu');
+    await A.evaluate(() => switchTab('settings'));
+    await A.fill('#partnerName', 'Deneme Ortak'); await A.fill('#partnerEmail', USERS_P_EMAIL); await A.selectOption('#partnerCompany', 'IC_MOONLOG');
+    await A.locator('#partnerForm').evaluate(f => f.requestSubmit());
+    check(await until(A, async () => (await A.textContent('#users-list')).includes(USERS_P_EMAIL)), 'Yönetici iş ortağını ekledi');
+    const Pp = await phone(b, 'P', null);
+    check(await signIn(Pp, 'p'), 'İş ortağı girişi: ' + await status(Pp));
+    check(await Pp.evaluate(() => window.LX_ROLE === 'partner' && document.body.classList.contains('partner')), 'Rol: iş ortağı');
+    const sp = await st(Pp);
+    check(sp.trips.length === 0 && sp.expenses.length === 0 && sp.fuels.length === 0 && sp.payments.length === 0 && sp.vehicles.length > 0, 'Başkalarının kayıtlarını görmüyor, araç listesini görüyor');
+    await Pp.evaluate(() => switchTab('cari'));
+    check(await Pp.evaluate(() => document.getElementById('tab-trips').classList.contains('active')), 'Cari sayfası kapalı, seferlere yönlendi');
+    check(await Pp.evaluate(() => getComputedStyle(document.querySelector('#side [data-tab=dashboard]')).display === 'none' && getComputedStyle(document.querySelector('th.pk')).display === 'none' && getComputedStyle(document.getElementById('tripPreview')).display === 'none'), 'Özet menüsü, kâr sütunu ve formdaki kâr tahmini gizli');
+    await Pp.evaluate(() => openModal('tripModal'));
+    check(await Pp.inputValue('#tripCompany') === 'IC_MOONLOG' && await Pp.evaluate(() => document.getElementById('tripCompany').disabled), 'Seferde Moonlog kilitli seçili');
+    await Pp.fill('#tripRoute', 'Antalya - Kayseri'); await Pp.fill('#tripClient', 'Ortak Müşteri'); await Pp.fill('#tripPrice', '40000');
+    await Pp.locator('#tripModal-form').evaluate(f => f.requestSubmit());
+    await addExpense(Pp, 1500, 'ortak gideri');
+    check(await until(A, async () => (await st(A)).trips.some(t => t.route === 'Antalya - Kayseri' && t.createdByName === 'Deneme Ortak' && t.intermediaryCompanyId === 'IC_MOONLOG')), 'Ortağın seferi yöneticiye ekleyen adıyla geldi');
+    check(await until(A, async () => (await st(A)).expenses.some(e => e.note === 'ortak gideri')), 'Ortağın gideri yöneticiye geldi');
+    const rd = await Pp.evaluate(async () => { const c = firebase.firestore().collection('fleets').doc('lojix'); const r = {}; try { await c.collection('trips').get(); r.all = 'okudu'; } catch (e) { r.all = e.code; } try { await c.collection('payments').get(); r.pay = 'okudu'; } catch (e) { r.pay = e.code; } try { await c.collection('vehicles').doc('V0').set({ data: { id: 'V0', plate: 'X' }, updatedAt: firebase.firestore.FieldValue.serverTimestamp(), updatedBy: firebase.auth().currentUser.uid }); r.veh = 'yazdı'; } catch (e) { r.veh = e.code; }
+      try { await c.collection('trips').doc('5').set({ data: { id: 5, createdBy: firebase.auth().currentUser.uid, intermediaryCompanyId: 'IC_TALYA' }, updatedAt: firebase.firestore.FieldValue.serverTimestamp(), updatedBy: firebase.auth().currentUser.uid }); r.co = 'yazdı'; } catch (e) { r.co = e.code; } try { await c.collection('trash').get(); r.trash = 'okudu'; } catch (e) { r.trash = e.code; } return r; });
+    check(rd.all === 'permission-denied' && rd.pay === 'permission-denied', 'Kural: ortak tüm seferleri ve tahsilatları okuyamaz ' + JSON.stringify(rd));
+    check(rd.veh === 'permission-denied' && rd.co === 'permission-denied' && rd.trash === 'permission-denied', 'Kural: araca, başka şirketli sefere ve çöp kutusuna erişemez');
+    await Pp.evaluate(() => openSheet('quickSheet')); await Pp.fill('#asst-input', 'bu ay net kâr ne kadar'); await Pp.locator('#asst-input').press('Enter');
+    check((await Pp.textContent('#asst-out')).includes('yalnızca yönetici'), 'Asistan iş ortağına kâr bilgisi vermedi');
+    await Pp.evaluate(() => closeSheet('quickSheet'));
+    const ot = (await st(Pp)).trips[0];
+    await Pp.evaluate(id => editRecord('trips', id), ot.id); await Pp.fill('#tripPrice', '42000'); await Pp.locator('#tripModal-form').evaluate(f => f.requestSubmit());
+    const oe = (await st(Pp)).expenses[0];
+    await Pp.evaluate(id => delItem('expenses', id), oe.id);
+    await A.evaluate(() => switchTab('trash'));
+    const mine = () => A.evaluate(() => (window.__lxTrash || []).filter(t => t.byName === 'Deneme Ortak').map(t => t.action + ':' + t.kind).sort().join(','));
+    check(await until(A, async () => (await mine()) === 'delete:expenses,edit:trips'), 'Çöp kutusunda ortağın düzenlediği sefer ve sildiği gider var: ' + await mine());
+    const trashN = await A.evaluate(() => window.__lxTrash.length);
+    check((await A.textContent('#trash-list')).includes('navlun') && (await A.textContent('#trash-list')).includes('gün sonra kalıcı silinir'), 'Düzenlemede değişen alan ve kalan gün görünüyor');
+    const delId = await A.evaluate(() => window.__lxTrash.find(t => t.action === 'delete' && t.byName === 'Deneme Ortak').id);
+    await A.evaluate(id => trashRestore(id), delId);
+    check(await until(Pp, async () => (await st(Pp)).expenses.some(e => e.note === 'ortak gideri')), 'Yönetici geri aldı, gider ortağın listesine de döndü');
+    check(await until(A, async () => (await A.evaluate(() => window.__lxTrash.length)) === trashN - 1), 'Geri alınan kayıt çöp kutusundan çıktı');
+
+    for (const p of [A, B, X, Rp, Pp]) check(!p.errs.length, 'Sayfa hatası yok ' + p.errs.join(' | '));
   } catch (e) { console.error(e); fails++; }
   await b.close();
   console.log(fails ? `\n${fails} kontrol BAŞARISIZ` : '\nTüm kontroller geçti');

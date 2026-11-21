@@ -18,18 +18,49 @@ service cloud.firestore {
       ];
     }
 
+    // İş ortağı (ör. Moonlog): fleets/lojix/partners/{e-posta} belgesi olan, e-postası doğrulanmış hesap.
+    // Yalnızca kendi eklediği sefer, gider ve yakıtı görür/değiştirir; araç, müşteri ve şirket listesini okur.
+    function partnerDoc() { return /databases/$(database)/documents/fleets/lojix/partners/$(request.auth.token.email); }
+    function partner() {
+      return request.auth != null && request.auth.token.email_verified == true && exists(partnerDoc());
+    }
+    function own(d) { return d.data.createdBy == request.auth.uid; }
+    function partnerOk(kind, d) {
+      return kind in ['trips', 'expenses', 'fuels'] && own(d)
+        && (kind != 'trips' || d.data.intermediaryCompanyId == get(partnerDoc()).data.company);
+    }
+    function shape() {
+      return request.resource.data.keys().hasOnly(['data', 'updatedAt', 'updatedBy'])
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.data is map;
+    }
+
     // Ortak filo: her kayıt ayrı belge, fleets/lojix/{tür}/{kayıtId} = { data, updatedAt, updatedBy }
     match /fleets/{fleet}/{kind}/{docId} {
       function ok() { return fleet == 'lojix'
         && kind in ['vehicles', 'clients', 'trips', 'fuels', 'expenses', 'payments', 'companies']; }
-      allow read: if member() && ok();
-      allow delete: if writer() && ok();
-      allow create, update: if writer() && ok()
-        && request.resource.data.keys().hasOnly(['data', 'updatedAt', 'updatedBy'])
-        && request.resource.data.updatedBy == request.auth.uid
-        && request.resource.data.updatedAt == request.time
-        && request.resource.data.data is map
-        && string(request.resource.data.data.id) == docId;
+      allow read: if ok() && (member()
+        || (partner() && (kind in ['vehicles', 'clients', 'companies'] || (kind in ['trips', 'expenses', 'fuels'] && own(resource.data)))));
+      allow delete: if ok() && (writer() || (partner() && partnerOk(kind, resource.data)));
+      allow create: if ok() && shape() && string(request.resource.data.data.id) == docId
+        && (writer() || (partner() && partnerOk(kind, request.resource.data)));
+      allow update: if ok() && shape() && string(request.resource.data.data.id) == docId
+        && (writer() || (partner() && partnerOk(kind, resource.data) && partnerOk(kind, request.resource.data)));
+    }
+
+    // İş ortağı tanımları: yönetici ekler/siler; ortak yalnızca kendi tanımını okur.
+    match /fleets/{fleet}/partners/{email} {
+      allow read: if fleet == 'lojix' && (member() || (request.auth != null && request.auth.token.email == email));
+      allow write: if fleet == 'lojix' && writer();
+    }
+
+    // Çöp kutusu: silinen ve iş ortağının düzenlediği kayıtların eski hâli (15 gün). Yönetici görür ve geri alır.
+    match /fleets/{fleet}/trash/{id} {
+      allow read, update, delete: if fleet == 'lojix' && writer();
+      allow create: if fleet == 'lojix' && request.resource.data.by == request.auth.uid
+        && request.resource.data.at == request.time
+        && (writer() || (partner() && request.resource.data.data.createdBy == request.auth.uid));
     }
 
     // Eski tek belge: geçiş bitene kadar eski sürüm de yazabilir; yeni sürüm yalnızca okur.

@@ -10,6 +10,10 @@
   const COLLS = Object.keys(KINDS);
   const BULK_DELETE_CONFIRM = 10;   // bundan çok silme tek seferde onaysız gitmez
   const BASE_KEY = 'LOJIX_SYNCED_V1';
+  const PARTNER_KINDS = ['trips', 'expenses', 'fuels'];   // iş ortağının yazabildiği türler
+  const TRASH_DAYS = 15;
+  const role = () => window.LX_ROLE || 'writer';
+  const allowed = key => role() !== 'partner' || PARTNER_KINDS.includes(key.slice(0, key.indexOf('/')));
   let auth = null, db = null, user = null, unsubs = [], ready = false, busy = false, again = false;
   let base = {};    // 'tür/id' -> son eşitlenen kaydın kanonik JSON'u (cihazda saklanır)
   let remote = {};  // 'tür/id' -> sunucudaki kanonik JSON
@@ -50,6 +54,15 @@
     for (let i = 0; i < ops.length; i += 450) {
       const part = ops.slice(i, i + 450), batch = db.batch();
       part.forEach(o => {
+        const old = base[o.key];
+        // Silinen kaydın ve iş ortağının düzenlediği kaydın eski hâli çöp kutusuna (15 gün)
+        if (old !== undefined && (o.json === null || role() === 'partner')) {
+          const i = o.key.indexOf('/'), at = Date.now();
+          batch.set(coll('trash').doc(`${o.key.slice(0, i)}_${o.key.slice(i + 1)}_${at}`), {
+            kind: o.key.slice(0, i), recordId: o.key.slice(i + 1), action: o.json === null ? 'delete' : 'edit',
+            data: JSON.parse(old), after: o.json === null ? null : JSON.parse(o.json),
+            by: user.uid, byName: window.__lxName || user.email || '', at: firebase.firestore.FieldValue.serverTimestamp(), expiresAt: at + TRASH_DAYS * 864e5 });
+        }
         if (o.json === null) batch.delete(ref(o.key));
         else batch.set(ref(o.key), { data: JSON.parse(o.json), updatedAt: firebase.firestore.FieldValue.serverTimestamp(), updatedBy: user.uid });
       });
@@ -83,9 +96,13 @@
       return say('Eşitlendi (yalnızca görüntüleme) • ' + count(remote), 'ok');
     }
     let server = remote;
-    if (!Object.keys(remote).length) { say('Eski bulut kaydı aktarılıyor…'); server = await legacyRemote(); }
+    if (!Object.keys(remote).length && role() === 'writer') { say('Eski bulut kaydı aktarılıyor…'); server = await legacyRemote(); }
     if (first) { try { localStorage.setItem(KEY + '_PRE_SYNC_BACKUP', JSON.stringify(state)); } catch (e) {} }
-    const local = localMap(), keys = new Set([...Object.keys(local), ...Object.keys(server), ...Object.keys(base)]);
+    let local = localMap();
+    if (role() === 'partner') {   // ortak: izinli türler cihazdan, diğerleri yalnızca buluttan
+      const l = {}; Object.keys(local).forEach(k => { if (allowed(k)) l[k] = local[k]; }); Object.keys(server).forEach(k => { if (!allowed(k)) l[k] = server[k]; }); local = l;
+    }
+    const keys = new Set([...Object.keys(local), ...Object.keys(server), ...Object.keys(base)]);
     const merged = {}, ops = [];
     keys.forEach(k => {
       const L = local[k], S = server[k], B = base[k], up = server !== remote; // up: sunucu kaydı eski belgeden geldi, yüklenmeli
@@ -105,6 +122,7 @@
       else { merged[k] = L; ops.push({ key: k, json: L }); } // cihazda değişmiş: cihazdaki kazanır
     });
     base = Object.assign({}, remote); saveBase();
+    ops.splice(0, ops.length, ...ops.filter(o => allowed(o.key)));
     if (ops.length && !confirmDeletes(ops)) {
       ops.filter(o => o.json === null).forEach(o => { merged[o.key] = server[o.key]; });
       ops.splice(0, ops.length, ...ops.filter(o => o.json !== null));
@@ -124,6 +142,7 @@
       const local = localMap(), ops = [];
       Object.keys(local).forEach(k => { if (local[k] !== base[k]) ops.push({ key: k, json: local[k] }); });
       Object.keys(base).forEach(k => { if (local[k] === undefined) ops.push({ key: k, json: null }); });
+      ops.splice(0, ops.length, ...ops.filter(o => allowed(o.key)));
       if (!ops.length) return;
       if (!confirmDeletes(ops)) {
         ops.filter(o => o.json === null).forEach(o => { local[o.key] = base[o.key]; });
@@ -159,7 +178,7 @@
       const S = remote[x], B = base[x], L = local[x];
       if (S === B) return;                                           // bulutta değişiklik yok
       if (S === L) { if (S === undefined) delete base[x]; else base[x] = S; return; } // kendi yazdığımız
-      if (L !== B && !window.LX_READONLY) return;                    // cihazda da değişmiş: cihazdaki gönderilecek
+      if (L !== B && !window.LX_READONLY && allowed(x)) return;      // cihazda da değişmiş: cihazdaki gönderilecek (yazma izni olan türde)
       if (S === undefined) { delete next[x]; delete base[x]; } else { next[x] = S; base[x] = S; }
       changed = true;
     });
@@ -171,11 +190,14 @@
   function attach() {
     detach();
     base = loadBase(user.uid);
-    let pending = COLLS.length, failed = false;
+    const P = role() === 'partner', list = P ? ['vehicles', 'clients', 'companies', ...PARTNER_KINDS] : COLLS;
+    let pending = list.length, failed = false;
     say('Bulut kayıtları okunuyor…');
-    COLLS.forEach(k => {
+    if (role() === 'writer') watchTrash();
+    list.forEach(k => {
       let first = true;
-      unsubs.push(coll(k).onSnapshot(snap => {
+      const q = P && PARTNER_KINDS.includes(k) ? coll(k).where('data.createdBy', '==', user.uid) : coll(k);
+      unsubs.push(q.onSnapshot(snap => {
         onRemote(k, snap);
         if (first) { first = false; if (--pending === 0 && !failed) initialMerge().catch(e => say('Bulut birleştirilemedi; cihazdaki kayıtlar korunuyor: ' + (e.message || e), 'error')); }
       }, err => {
@@ -185,18 +207,41 @@
     });
   }
 
+  // Çöp kutusu (yalnız yönetici): canlı liste; süresi dolanlar silinir
+  function watchTrash() {
+    unsubs.push(coll('trash').onSnapshot(snap => {
+      const now = Date.now(), items = [];
+      snap.forEach(d => { const x = d.data(); if (x.expiresAt < now) d.ref.delete().catch(() => {}); else items.push({ id: d.id, ...x }); });
+      window.__lxTrash = items.sort((a, b) => b.expiresAt - a.expiresAt);
+      if (window.renderTrash) window.renderTrash();
+    }, () => {}));
+  }
+  window.lxTrashDelete = id => db && coll('trash').doc(id).delete();
+
   function ui(signedIn) {
     $('lojix-cloud-fields').style.display = signedIn ? 'none' : 'grid';
     $('lojix-cloud-actions').style.display = signedIn ? 'flex' : 'none';
     const who = $('lojix-cloud-user'); if (who) who.textContent = signedIn ? (user.email || '') : '';
   }
-  function authChanged(u) {
+  function setRole(r, info) {
+    window.LX_ROLE = r; window.LX_READONLY = r === 'viewer'; window.LX_PARTNER = r === 'partner' ? info : null;
+    window.__lxUid = user ? user.uid : ''; window.__lxName = info && info.name || (user && user.email) || '';
+    document.body.classList.toggle('ro', r === 'viewer'); document.body.classList.toggle('partner', r === 'partner');
+    if (window.onRoleChange) window.onRoleChange(r);
+  }
+  // Rol: yönetici (LOJIX_WRITERS) | iş ortağı (partners/{e-posta} belgesi) | görüntüleyici (diğer ekip; kural okumayı ekiple sınırlar)
+  async function authChanged(u) {
     user = u || null;
-    window.LX_READONLY = !!user && !(window.LOJIX_WRITERS || []).includes(user.uid);
-    document.body.classList.toggle('ro', window.LX_READONLY);
     ui(!!user);
-    if (!user) { detach(); say('Giriş yapılmadı. Kayıtlar yalnızca bu cihazda tutuluyor.'); return; }
-    attach();
+    if (!user) { detach(); setRole('writer'); say('Giriş yapılmadı. Kayıtlar yalnızca bu cihazda tutuluyor.'); return; }
+    if ((window.LOJIX_WRITERS || []).includes(user.uid)) { setRole('writer'); return attach(); }
+    let p = null;
+    try { const d = await db.collection('fleets').doc(FLEET).collection('partners').doc((user.email || '').toLowerCase()).get(); p = d.exists ? d.data() : null; } catch (e) {}
+    if (p) {
+      if (!user.emailVerified) { setRole('partner', p); detach(); return say('E-posta adresiniz henüz doğrulanmadı. E-postanıza gelen bağlantıyla parolanızı belirleyin ya da hesabı doğrulayın, sonra yeniden giriş yapın.', 'error'); }
+      setRole('partner', p); return attach();
+    }
+    setRole('viewer'); attach();
   }
   function init() {
     const cfg = window.LOJIX_FIREBASE_CONFIG;

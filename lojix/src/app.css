@@ -379,3 +379,12 @@ body.ro #fab, body.ro [data-w], body.ro .row-act, body.ro .mc-act, body.ro #set-
 .logo-tile { background: #E6E7EC; }
 /* Turuncu artı düğmesi logodaki ok gibi */
 #fab { background: linear-gradient(135deg, #F7931E, #F06A00); }
+
+/* İş ortağı: yalnızca kendi kayıtları; özet, cari, kâr, araç/bakım ve yönetim alanları gizli */
+body.partner #side [data-tab]:not([data-tab=trips]):not([data-tab=fuel]):not([data-tab=expenses]):not([data-tab=settings]),
+body.partner #mnav [data-tab=dashboard], body.partner #mnav [data-tab=cari],
+body.partner #moreList [data-tab]:not([data-tab=expenses]):not([data-tab=settings]),
+body.partner [data-admin], body.partner .pk, body.partner #tripPreview, body.partner #side .nav-group-label { display: none !important; }
+/* Çöp kutusu ve kullanıcı yönetimi yalnız yöneticide */
+body.ro [data-tab=trash], body.partner [data-tab=trash], body.ro [data-writer] { display: none !important; }
+s { color: var(--faint); }
