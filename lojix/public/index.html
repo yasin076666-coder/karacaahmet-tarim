@@ -9,7 +9,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Lojix">
 <meta name="theme-color" content="#060B14">
-<script>try{const t=localStorage.getItem('LOJIX_THEME');if(t==="light"||t==="auto")document.documentElement.dataset.theme=t}catch(e){}</script>
+<script>try{let t=localStorage.getItem('LOJIX_THEME');if(t==='auto')t=matchMedia('(prefers-color-scheme: light)').matches?'light':'';if(t==='light'||t==='brand')document.documentElement.dataset.theme=t}catch(e){}</script>
 <link rel="preload" href="fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
 <title>Lojix | Lojistikte Akıllı Çözümler</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -200,8 +200,13 @@
      </div>
     </div>
     <div class="card p-5">
-     <div class="lx-section-head !border-0 !pb-0"><div class="lx-section-icon"><svg class="ic"><use href="#i-contrast"/></svg></div><div class="flex-1"><h3 class="font-semibold">Görünüm</h3><p class="text-[13px] text-slate-500">Varsayılan koyu kokpit. "Telefona göre" gündüz açık, gece koyu olur.</p></div>
-      <select id="themeSelect" class="sel" onchange="setTheme(this.value)" aria-label="Tema"><option value="dark">Koyu kokpit</option><option value="light">Açık</option><option value="auto">Telefona göre</option></select></div>
+     <div class="lx-section-head !border-0 !pb-3"><div class="lx-section-icon"><svg class="ic"><use href="#i-contrast"/></svg></div><div class="flex-1"><h3 class="font-semibold">Görünüm</h3><p class="text-[13px] text-slate-500">Tema yalnızca bu telefonda değişir; her kullanıcı kendi seçer.</p></div></div>
+     <div class="theme-grid" role="radiogroup" aria-label="Tema">
+      <button type="button" class="theme-opt" role="radio" data-theme-opt="dark" onclick="setTheme('dark')"><span class="sw sw-dark"><i></i><i></i><i></i></span><b>Koyu kokpit</b><small>Gece mavisi, parlak göstergeler</small></button>
+      <button type="button" class="theme-opt" role="radio" data-theme-opt="light" onclick="setTheme('light')"><span class="sw sw-light"><i></i><i></i><i></i></span><b>Açık ve ferah</b><small>Beyaz, bol boşluk, yumuşak</small></button>
+      <button type="button" class="theme-opt" role="radio" data-theme-opt="brand" onclick="setTheme('brand')"><span class="sw sw-brand"><i></i><i></i><i></i></span><b>Marka renkli</b><small>Lacivert bant, turuncu düğmeler</small></button>
+      <button type="button" class="theme-opt" role="radio" data-theme-opt="auto" onclick="setTheme('auto')"><span class="sw sw-auto"></span><b>Telefona göre</b><small>Gündüz açık, gece koyu</small></button>
+     </div>
     </div>
    </section>
   </main>

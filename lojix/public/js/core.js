@@ -54,7 +54,12 @@ function buildNav(){
 function openSheet(id){$(id).classList.add('open');const f=$(id).querySelector('button');if(f)f.focus()}
 function closeSheet(id){$(id).classList.remove('open')}
 function quick(id){closeSheet('quickSheet');openModal(id)}
-function setTheme(t){try{t==='dark'?localStorage.removeItem('LOJIX_THEME'):localStorage.setItem('LOJIX_THEME',t)}catch(e){}if(t==='dark')delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=t}
+// Tema: dark (varsayılan, öznitelik yok) | light | brand | auto (telefonun gündüz/gece ayarını izler). Seçim bu telefonda saklanır.
+const THEME_COLORS={dark:'#060B14',light:'#F4F6FA',brand:'#0A2A5C'};
+function themePref(){try{return localStorage.getItem('LOJIX_THEME')||'dark'}catch(e){return 'dark'}}
+function applyTheme(){const p=themePref(),t=p==='auto'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):p;if(t==='dark')delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=t;const m=document.querySelector('meta[name=theme-color]');if(m)m.content=THEME_COLORS[t]||THEME_COLORS.dark;document.querySelectorAll('[data-theme-opt]').forEach(b=>b.setAttribute('aria-checked',String(b.dataset.themeOpt===p)))}
+function setTheme(t){try{t==='dark'?localStorage.removeItem('LOJIX_THEME'):localStorage.setItem('LOJIX_THEME',t)}catch(e){}applyTheme()}
+matchMedia('(prefers-color-scheme: light)').addEventListener('change',()=>{if(themePref()==='auto')applyTheme()});
 // Telefonda tablolar karta döner: her hücreye başlıktaki etiketi yaz.
 function labelCells(){document.querySelectorAll('table.rtable').forEach(tb=>{const hs=[...tb.querySelectorAll('thead th')].map(th=>th.textContent.trim());tb.querySelectorAll('tbody tr').forEach(tr=>[...tr.children].forEach((td,i)=>{if(td.hasAttribute('colspan'))return;td.dataset.label=hs[i]||'';if(td.childNodes.length>1||(td.firstChild&&td.firstChild.nodeType===3)){const w=document.createElement('div');w.append(...td.childNodes);td.append(w)}}))})}
 function switchTab(id){
@@ -176,7 +181,7 @@ function renderSettings(){
  const cc=$('intermediaryCompanyRows');if(cc)cc.innerHTML=state.intermediaryCompanies.map(c=>`<div class="border rounded-lg p-3 space-y-2"><div class="grid grid-cols-1 sm:grid-cols-[1fr_140px_auto] items-end gap-2"><div><label class="lbl" for="ic-name-${esc(c.id)}">Aracı şirket adı</label><input id="ic-name-${esc(c.id)}" class="inp" value="${esc(c.name)}" maxlength="120"></div><div><label class="lbl" for="ic-rate-${esc(c.id)}">Navlun kesintisi (%)</label><input id="ic-rate-${esc(c.id)}" class="inp" type="number" min="0" max="100" step="0.1" value="${Number(c.rate)||0}"></div><div class="flex gap-2"><button class="btn btn-primary" onclick="saveIntermediaryCompany('${esc(c.id)}')">Kaydet</button><button class="btn btn-danger" onclick="deleteIntermediaryCompany('${esc(c.id)}')">Sil</button></div></div><p class="text-xs text-slate-500">Yeni seferlerde bu oran otomatik uygulanır. Önceden kaydedilmiş seferlerin oranı geçmiş kayıt olarak korunur.</p></div>`).join('')||'<p class="text-sm text-slate-500">Henüz aracı şirket eklenmedi.</p>';
  const ss=$('settings-summary');if(ss){const total=state.vehicles.length,drivers=new Set(state.vehicles.map(v=>(v.driver||'').trim()).filter(Boolean)).size,companies=state.intermediaryCompanies.length,records=state.trips.length+state.fuels.length+state.expenses.length+state.payments.length;ss.innerHTML=[['Araç',total,'Filo tanımları'],['Şoför',drivers,'Tanımlı sürücüler'],['Aracı şirket',companies,'Komisyon kartları'],['Kayıt',records,'Sefer, yakıt, gider ve tahsilat']].map(([l,v,sub])=>`<div class="lx-mini-stat"><div class="lx-mini-stat-label">${l}</div><div class="lx-mini-stat-value">${fmtNum(v,0)}</div><div class="lx-mini-stat-sub">${sub}</div></div>`).join('')}
 }
-function renderAll(){fillMonths();populateSelects();renderDashboard();renderTrips();renderFuel();renderExpenses();renderVehicles();renderDrivers();renderSettings();renderAlerts();renderCari();renderMaint();labelCells();const ts=$('themeSelect');if(ts)ts.value=document.documentElement.dataset.theme||'dark'}
+function renderAll(){fillMonths();populateSelects();renderDashboard();renderTrips();renderFuel();renderExpenses();renderVehicles();renderDrivers();renderSettings();renderAlerts();renderCari();renderMaint();labelCells();applyTheme()}
 
 /* ---------- Cari ---------- */
 let _cari=[];

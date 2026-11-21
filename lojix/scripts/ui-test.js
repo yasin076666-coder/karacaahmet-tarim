@@ -154,6 +154,14 @@ async function run() {
     check((await P.textContent('#cloud-banner')).includes('Bulut bağlı değil') && await P.isVisible('#cloud-banner'), 'Giriş yokken bulut uyarısı görünüyor');
     check(await P.evaluate(() => getComputedStyle(document.body).backgroundColor) === 'rgb(6, 11, 20)', 'Varsayılan tema koyu kokpit');
     check(await P.locator('#gauges .gauge').count() === 4, 'Dört gösterge çizildi');
+    await P.evaluate(() => setTheme('brand'));
+    check(await P.evaluate(() => document.documentElement.dataset.theme === 'brand' && localStorage.getItem('LOJIX_THEME') === 'brand' && document.querySelector('[data-theme-opt=brand]').getAttribute('aria-checked') === 'true'), 'Marka renkli tema seçildi ve saklandı');
+    await P.emulateMedia({ colorScheme: 'light' }); await P.evaluate(() => setTheme('auto'));
+    check(await P.evaluate(() => document.documentElement.dataset.theme) === 'light', 'Telefona göre: gündüz modunda açık tema');
+    await P.emulateMedia({ colorScheme: 'dark' });
+    await P.waitForFunction(() => !document.documentElement.dataset.theme, null, { timeout: 3000 }).catch(() => {});
+    check(await P.evaluate(() => !document.documentElement.dataset.theme), 'Telefona göre: gece moduna geçince kokpit');
+    await P.evaluate(() => setTheme('dark'));
 
     for (const p of [E, P]) check(!p.errs.length, 'Sayfa hatası yok ' + p.errs.join(' | '));
   } catch (e) { console.error(e); fails++; }
