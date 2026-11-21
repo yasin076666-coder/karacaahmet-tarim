@@ -1,0 +1,11 @@
+{
+  "name": "lojix",
+  "private": true,
+  "scripts": {
+    "build:css": "tailwindcss -i src/app.css -o public/css/app.css --minify",
+    "test": "node scripts/unit-test.js"
+  },
+  "devDependencies": {
+    "tailwindcss": "3.4.17"
+  }
+}

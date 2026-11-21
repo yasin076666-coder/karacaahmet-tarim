@@ -1,0 +1,65 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Sahip: kullanıcıları ekler, rol verir, erişimi kaldırır. Kimse sahibi kilitleyemesin diye burada sabit.
+    function owner() { return request.auth != null && request.auth.uid == 'yBvvM9DhzXaOzq77zh64mwIdF3l2'; }  // yasin07.6666@gmail.com
+
+    // Diğer herkes: fleets/lojix/users/{e-posta} = { name, role: admin|viewer|partner|driver, uid?, company?, vehicleId? }
+    // Belgedeki uid girişle eşleşmeli ya da e-posta doğrulanmış olmalı (başkasının e-postasıyla açılan hesap erişemez).
+    function uref() { return /databases/$(database)/documents/fleets/lojix/users/$(request.auth.token.email); }
+    function udoc() { return get(uref()).data; }
+    function trusted() {
+      return request.auth != null && request.auth.token.email != null && exists(uref())
+        && (udoc().get('uid', '') == request.auth.uid || request.auth.token.email_verified == true);
+    }
+    function role() { return trusted() ? udoc().role : ''; }
+    function admin() { return owner() || role() == 'admin'; }
+    function member() { return admin() || role() == 'viewer'; }          // tüm filoyu okur
+    function limited() { return role() in ['partner', 'driver']; }       // yalnızca kendi kayıtları
+    function own(d) { return d.data.createdBy == request.auth.uid; }
+    function limitedOk(kind, d) {
+      return own(d) && (
+        (role() == 'partner' && kind in ['trips', 'expenses', 'fuels']
+          && (kind != 'trips' || d.data.intermediaryCompanyId == udoc().get('company', '')))
+        || (role() == 'driver' && kind in ['expenses', 'fuels']
+          && (udoc().get('vehicleId', '') == '' || d.data.vehicleId == udoc().vehicleId)));
+    }
+    function shape() {
+      return request.resource.data.keys().hasOnly(['data', 'updatedAt', 'updatedBy'])
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.data is map;
+    }
+
+    // Ortak filo: her kayıt ayrı belge, fleets/lojix/{tür}/{kayıtId} = { data, updatedAt, updatedBy }
+    match /fleets/{fleet}/{kind}/{docId} {
+      function ok() { return fleet == 'lojix'
+        && kind in ['vehicles', 'clients', 'trips', 'fuels', 'expenses', 'payments', 'companies']; }
+      allow read: if ok() && (member()
+        || (limited() && (kind in ['vehicles', 'clients', 'companies'] || (kind in ['trips', 'expenses', 'fuels'] && own(resource.data)))));
+      allow delete: if ok() && (admin() || (limited() && limitedOk(kind, resource.data)));
+      allow create: if ok() && shape() && string(request.resource.data.data.id) == docId
+        && (admin() || (limited() && limitedOk(kind, request.resource.data)));
+      allow update: if ok() && shape() && string(request.resource.data.data.id) == docId
+        && (admin() || (limited() && limitedOk(kind, resource.data) && limitedOk(kind, request.resource.data)));
+    }
+
+    // Kullanıcılar: listeyi yalnız sahip görür ve değiştirir; diğer herkes yalnızca kendi belgesini (rolünü) okur.
+    match /fleets/{fleet}/users/{email} {
+      allow read: if fleet == 'lojix' && (owner() || (request.auth != null && request.auth.token.email == email));
+      allow write: if fleet == 'lojix' && owner();
+    }
+
+    // Çöp kutusu: silinen ve sınırlı kullanıcıların düzenlediği kayıtların eski hâli (15 gün). Yönetici görür ve geri alır.
+    match /fleets/{fleet}/trash/{id} {
+      allow read, update, delete: if fleet == 'lojix' && admin();
+      allow create: if fleet == 'lojix' && request.resource.data.by == request.auth.uid
+        && request.resource.data.at == request.time
+        && (admin() || (limited() && request.resource.data.data.createdBy == request.auth.uid));
+    }
+
+    // Eski tek belge (lojix_data/1) canlıya geçişte silindi; eski sürüm artık yazamaz (aşağıdaki kural her şeyi kapatır).
+
+    match /{document=**} { allow read, write: if false; }
+  }
+}

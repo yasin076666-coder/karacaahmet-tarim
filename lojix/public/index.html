@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="apple-touch-icon" href="img/icon-180.png">
+<link rel="icon" type="image/png" href="img/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Lojix">
+<meta name="theme-color" content="#060B14">
+<script>try{let t=localStorage.getItem('LOJIX_THEME');if(t==='auto')t=matchMedia('(prefers-color-scheme: light)').matches?'light':'';if(t==='light'||t==='brand')document.documentElement.dataset.theme=t}catch(e){}</script>
+<link rel="preload" href="fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+<title>Lojix | Lojistikte Akıllı Çözümler</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="css/app.css">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+</head>
+<body>
+<div id="splash" aria-hidden="true"><img src="img/logo-640.jpg" alt=""><div class="bar"></div></div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+ <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></symbol>
+ <symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></symbol>
+ <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+ <symbol id="i-fuel" viewBox="0 0 24 24"><path d="M3 22h12M4 9h10M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 4 0V9.8a2 2 0 0 0-.6-1.4L18 5"/></symbol>
+ <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3l6.9-6.9a6 6 0 0 1 7.9-7.9z"/></symbol>
+ <symbol id="i-truck" viewBox="0 0 24 24"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2M15 18H9M19 18h2a1 1 0 0 0 1-1v-3.6a1 1 0 0 0-.2-.6l-3.5-4.4a1 1 0 0 0-.8-.4H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></symbol>
+ <symbol id="i-user" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+ <symbol id="i-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.7 9a1 1 0 0 1-.7 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.2-2.7a1.2 1.2 0 0 1 1.6 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></symbol>
+ <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4"/></symbol>
+ <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></symbol>
+ <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M21.2 6.8a2.8 2.8 0 0 0-4-4L3.8 16.2a2 2 0 0 0-.5.8L2 21.4a.5.5 0 0 0 .6.6l4.4-1.3a2 2 0 0 0 .8-.5z"/></symbol>
+ <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+ <symbol id="i-printer" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8" rx="1"/></symbol>
+ <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></symbol>
+ <symbol id="i-snow" viewBox="0 0 24 24"><path d="M2 12h20M12 2v20M20 16l-4-4 4-4M4 8l4 4-4 4M16 4l-4 4-4-4M8 20l4-4 4 4"/></symbol>
+ <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><path d="M8 8h8M8 12h8M8 16h5"/></symbol>
+ <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></symbol>
+ <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></symbol>
+ <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></symbol>
+ <symbol id="i-table" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></symbol>
+ <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M17.5 19H9a7 7 0 1 1 6.7-9h1.8a4.5 4.5 0 1 1 0 9z"/></symbol>
+ <symbol id="i-building" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01"/></symbol>
+ <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+ <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15.7-6L21 8M21 3v5h-5M21 12a9 9 0 0 1-15.7 6L3 16M8 16H3v5"/></symbol>
+ <symbol id="i-file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v4a2 2 0 0 0 2 2h4M16 13H8M16 17H8M10 9H8"/></symbol>
+ <symbol id="i-contrast" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></symbol>
+ <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.7 18-8-14a2 2 0 0 0-3.5 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3M12 9v4M12 17h.01"/></symbol>
+ <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8"/></symbol>
+ <symbol id="i-send" viewBox="0 0 24 24"><path d="M14.5 21.7a.5.5 0 0 0 .9 0L22 2.6a.5.5 0 0 0-.6-.6L2.3 8.6a.5.5 0 0 0 0 .9l8 3.2a2 2 0 0 1 1.1 1.1z M21.9 2.1 10.9 13.1"/></symbol>
+ <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+</svg>
+
+<div class="min-h-screen md:flex">
+ <aside id="side" class="hidden md:flex md:w-60 flex-col shrink-0 px-3 py-4 sticky top-0 h-screen overflow-y-auto">
+  <div class="flex items-center gap-3 px-1.5 pb-4 pt-1">
+   <img class="lojix-logo logo-tile w-14 h-14" src="img/icon-192.png" srcset="img/icon-192.png 1x, img/icon-512.png 3x" alt="Lojix">
+   <div><div class="font-bold text-xl leading-tight tracking-tight">Lojix</div><div class="text-[12.5px] leading-snug" style="color:#8FA2BC">Lojistikte akılcı çözümler</div></div>
+  </div>
+ </aside>
+ <div class="flex-1 min-w-0 flex flex-col">
+  <header class="app-head px-4 md:px-8 py-3 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-20" style="padding-top:max(0.75rem,env(safe-area-inset-top))">
+   <div class="flex items-center gap-2.5 min-w-0"><img class="lojix-logo logo-tile w-9 h-9 !rounded-[10px] !p-0.5 md:hidden" src="img/icon-192.png" alt="Lojix"><h1 id="page-title">Özet</h1><button id="cloud-chip" data-state="off" onclick="switchTab('settings')" class="cloud-chip" aria-label="Bulut durumu, ayarları aç">Bağlı değil</button></div>
+   <div class="flex items-center gap-2 flex-wrap">
+    <select id="monthFilter" onchange="onPeriodChange()" class="sel" aria-label="Dönem"></select>
+    <div id="dateRangeControls" class="items-center gap-1" style="display:none"><input id="globalStartDate" type="date" class="sel" aria-label="Başlangıç tarihi" onchange="renderAll()"><span class="text-slate-500">–</span><input id="globalEndDate" type="date" class="sel" aria-label="Bitiş tarihi" onchange="renderAll()"></div>
+    <button onclick="printReport()" class="btn btn-icon hidden md:inline-flex" title="Yazdır" aria-label="Sayfayı yazdır"><svg class="ic"><use href="#i-printer"/></svg></button>
+    <button data-w onclick="openSheet('quickSheet')" class="btn btn-primary hidden md:inline-flex"><svg class="ic"><use href="#i-plus"/></svg>Yeni kayıt</button>
+   </div>
+  </header>
+  <main class="px-4 py-5 md:px-8 md:py-7 flex-1 overflow-x-hidden max-w-[1400px] w-full">
+   <div id="print-head"><img class="lojix-logo" style="width:56px;height:56px;border-radius:12px" alt=""><div><div style="font-size:22px;font-weight:700;color:#0a3a78">Lojix</div><div id="print-meta" style="font-size:12px;color:#475569;margin-top:2px"></div></div></div>
+
+   <section id="tab-dashboard" class="tab-content active space-y-5">
+    <div id="cloud-banner" class="cloud-banner !mb-0" hidden role="status"></div>
+    <div class="hello"><div class="min-w-0"><div id="hello-date" class="hello-date"></div><h2 id="hello-title">Merhaba</h2><p id="hello-sum"></p></div></div>
+    <div class="quick-grid">
+     <button data-w class="quick" onclick="openModal('tripModal')"><span class="q-ic bg-emerald-100 text-emerald-700"><svg class="ic ic-lg"><use href="#i-route"/></svg></span>Sefer</button>
+     <button data-w class="quick" onclick="openModal('fuelModal')"><span class="q-ic bg-sky-100 text-sky-700"><svg class="ic ic-lg"><use href="#i-fuel"/></svg></span>Yakıt</button>
+     <button data-w class="quick" onclick="openModal('expenseModal')"><span class="q-ic bg-rose-100 text-rose-700"><svg class="ic ic-lg"><use href="#i-receipt"/></svg></span>Gider</button>
+     <button data-w data-admin class="quick" onclick="openModal('payModal')"><span class="q-ic bg-blue-100 text-blue-700"><svg class="ic ic-lg"><use href="#i-wallet"/></svg></span>Tahsilat</button>
+     <button class="quick voice" onclick="asstListen()" aria-label="Sesle kayıt"><span class="q-ic"><svg class="ic ic-lg"><use href="#i-mic"/></svg></span>Söyle</button>
+    </div>
+    <div id="alerts-box"></div>
+    <div id="kpis" class="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4"></div>
+    <div id="gauges" class="gauges"></div>
+    <div class="grid grid-cols-1 xl:grid-cols-5 gap-5">
+     <div class="card p-5 xl:col-span-3">
+      <div class="flex items-center justify-between gap-3 flex-wrap mb-3"><h3 class="font-semibold text-[17px]">Son 6 ay</h3><div class="legend"><span style="--c:var(--ice)">Navlun</span><span style="--c:var(--line-strong)">Gider ve kesinti</span><span style="--c:var(--pos)">Net</span></div></div>
+      <div id="finance-chart" class="trend"></div>
+     </div>
+     <div class="card p-5 xl:col-span-2">
+      <h3 class="font-semibold text-[17px] mb-2">Maliyet dağılımı</h3>
+      <div id="breakdown" class="text-sm"></div>
+      <p class="mt-4 text-[13px] text-slate-500">Frigo ünitesinin mazot fişlerini <b class="text-slate-700">Frigo dorse mazotu</b> olarak girin; çekicinin 100 km ortalaması bozulmaz.</p>
+     </div>
+    </div>
+    <div class="card overflow-hidden">
+     <div id="dash-title" class="px-5 py-4 border-b border-slate-200 font-semibold text-[17px]">Araç kârlılığı</div>
+     <div class="overflow-x-auto"><table class="rtable w-full text-sm">
+      <thead><tr><th class="th">Plaka</th><th class="th">Şoför</th><th class="th text-right">Navlun</th><th class="th text-right">Gider</th><th class="th text-center">Lt/100 km</th><th class="th text-right">Net kâr</th></tr></thead>
+      <tbody id="dash-tbody" class="divide-y divide-slate-200"></tbody></table></div>
+    </div>
+   </section>
+
+   <section id="tab-trips" class="tab-content space-y-4">
+    <div class="flex flex-wrap gap-2"><select id="tF-v" onchange="renderTrips()" class="sel" aria-label="Araç"></select><select id="tF-d" onchange="renderTrips()" class="sel" aria-label="Şoför"></select><input id="tF-q" type="search" oninput="renderTrips()" class="sel flex-1 min-w-[200px]" placeholder="Müşteri, güzergâh, fatura no, plaka…" aria-label="Seferlerde ara"></div>
+    <div id="trip-sum" class="text-sm text-slate-500"></div>
+    <div class="card overflow-x-auto desk-only"><table class="rtable w-full text-sm">
+     <thead><tr><th class="th">Tarih</th><th class="th">Araç</th><th class="th">Güzergâh ve müşteri</th><th class="th text-right">Navlun</th><th class="th text-right">Komisyon ve kesinti</th><th class="th text-right pk">Tahmini kâr</th><th class="th text-center">Tahsilat</th><th class="th"></th></tr></thead>
+     <tbody id="trips-tbody" class="divide-y divide-slate-200"></tbody></table></div>
+    <div id="trips-cards" class="mlist mob-only"></div>
+   </section>
+
+   <section id="tab-cari" class="tab-content space-y-4">
+    <div class="flex flex-wrap items-end gap-2">
+     <div><label class="lbl" for="cariStart">Başlangıç</label><input id="cariStart" type="date" class="inp" onchange="renderCari()"></div>
+     <div><label class="lbl" for="cariEnd">Bitiş</label><input id="cariEnd" type="date" class="inp" onchange="renderCari()"></div>
+     <button class="btn btn-quiet" onclick="$('cariStart').value='';$('cariEnd').value='';renderCari()">Tüm tarihler</button>
+     <div class="flex flex-wrap gap-2 md:ml-auto"><button onclick="printCariOverviewPDF()" class="btn btn-quiet"><svg class="ic"><use href="#i-file"/></svg>Genel cari PDF</button><button data-w onclick="createClient()" class="btn btn-quiet"><svg class="ic"><use href="#i-plus"/></svg>Müşteri</button><button data-w onclick="openModal('payModal')" class="btn btn-primary"><svg class="ic"><use href="#i-wallet"/></svg>Tahsilat ekle</button></div>
+    </div>
+    <div id="cari-kpis" class="grid grid-cols-2 lg:grid-cols-4 gap-3"></div>
+    <div class="card overflow-x-auto"><table class="rtable w-full text-sm"><thead><tr><th class="th">Müşteri</th><th class="th text-right">Sefer</th><th class="th text-right">Toplam navlun</th><th class="th text-right">Açık alacak</th><th class="th text-right">Tahsilat</th><th class="th text-right">Kalan bakiye</th><th class="th">Vade</th><th class="th"></th></tr></thead><tbody id="cari-tbody" class="divide-y divide-slate-200"></tbody></table></div>
+    <h3 class="font-semibold text-[17px] pt-2">Müşteri kartları</h3>
+    <div id="client-cards" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3"></div>
+    <h3 class="font-semibold text-[17px] pt-2">Açık seferler</h3>
+    <div class="card overflow-x-auto"><table class="rtable w-full text-sm"><thead><tr><th class="th">Müşteri</th><th class="th">Sefer</th><th class="th">Vade</th><th class="th text-right">Kalan</th><th class="th"></th></tr></thead><tbody id="open-tbody" class="divide-y divide-slate-200"></tbody></table></div>
+    <h3 class="font-semibold text-[17px] pt-2">Tahsilatlar</h3>
+    <div class="card overflow-x-auto desk-only"><table class="rtable w-full text-sm"><thead><tr><th class="th">Tarih</th><th class="th">Müşteri</th><th class="th">Not</th><th class="th text-right">Tutar</th><th class="th"></th></tr></thead><tbody id="pay-tbody" class="divide-y divide-slate-200"></tbody></table></div>
+    <div id="pay-cards" class="mlist mob-only"></div>
+    <p class="text-[13px] text-slate-500">Seçilen tarih aralığındaki seferler ve aynı aralıktaki tahsilatlar hesaplanır. Sefere bağlanan tahsilat önce o seferden, bağlanmayan tahsilat vadesi en yakın seferden düşer.</p>
+   </section>
+
+   <section id="tab-fuel" class="tab-content space-y-4">
+    <div class="flex flex-wrap gap-2"><select id="fF-v" onchange="renderFuel()" class="sel" aria-label="Araç"></select>
+     <select id="fF-t" onchange="renderFuel()" class="sel" aria-label="Yakıt türü"><option value="ALL">Tüm yakıt</option><option value="CEKICI">Çekici mazotu</option><option value="FRIGO">Frigo dorse mazotu</option><option value="ADBLUE">AdBlue</option></select></div>
+    <div class="card overflow-x-auto desk-only"><table class="rtable w-full text-sm">
+     <thead><tr><th class="th">Tarih</th><th class="th">Araç</th><th class="th">Tür ve istasyon</th><th class="th text-right">Litre</th><th class="th text-right">Birim fiyat</th><th class="th text-right">Gösterge km</th><th class="th text-center">Tüketim</th><th class="th text-right">Tutar</th><th class="th"></th></tr></thead>
+     <tbody id="fuel-tbody" class="divide-y divide-slate-200"></tbody></table></div>
+    <div id="fuel-cards" class="mlist mob-only"></div>
+   </section>
+
+   <section id="tab-expenses" class="tab-content space-y-4">
+    <div class="flex flex-wrap gap-2"><select id="eF-v" onchange="renderExpenses()" class="sel" aria-label="Araç"></select><select id="eF-c" onchange="renderExpenses()" class="sel" aria-label="Kategori"></select></div>
+    <div class="card overflow-x-auto desk-only"><table class="rtable w-full text-sm">
+     <thead><tr><th class="th">Tarih</th><th class="th">Araç</th><th class="th">Şoför</th><th class="th">Kategori</th><th class="th">Açıklama</th><th class="th text-right">Tutar</th><th class="th"></th></tr></thead>
+     <tbody id="exp-tbody" class="divide-y divide-slate-200"></tbody></table></div>
+    <div id="exp-cards" class="mlist mob-only"></div>
+    <div class="card p-5"><div class="flex items-center justify-between gap-3 flex-wrap mb-3"><h3 class="font-semibold text-[17px]">Son 6 ay</h3><div class="legend"><span style="--c:var(--ice)">Navlun</span><span style="--c:var(--line-strong)">Gider ve kesinti</span><span style="--c:var(--pos)">Net</span></div></div><div id="expense-chart" class="trend"></div></div>
+   </section>
+
+   <section id="tab-vehicles" class="tab-content"><div id="veh-grid" class="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4"></div></section>
+
+   <section id="tab-drivers" class="tab-content">
+    <div class="card overflow-x-auto"><table class="rtable w-full text-sm">
+     <thead><tr><th class="th">Şoför</th><th class="th">Araç</th><th class="th text-center">Sefer / km</th><th class="th text-center">Lt/100 km</th><th class="th text-right">Navlun</th><th class="th text-right">Şoför ödemeleri</th><th class="th text-right">Yakıt ve diğer</th><th class="th text-right">Net katkı</th></tr></thead>
+     <tbody id="drv-tbody" class="divide-y divide-slate-200"></tbody></table></div>
+   </section>
+
+   <section id="tab-maint" class="tab-content space-y-4">
+    <div class="flex flex-wrap items-center justify-between gap-3"><p class="text-sm text-slate-500 max-w-[62ch]">Belge bitişine 30 gün kala uyarı başlar, son 7 günde kırmızıya döner. Planlı bakıma 2.000 km kala uyarı görünür. Sefer km'si ve çekici mazotundaki gösterge km'si aracın km'sini günceller.</p><button data-w onclick="saveMaint()" class="btn btn-primary"><svg class="ic"><use href="#i-check"/></svg>Değişiklikleri kaydet</button></div>
+    <div id="maint-summary" class="grid grid-cols-2 xl:grid-cols-4 gap-3"></div>
+    <div class="card overflow-x-auto">
+     <table class="rtable w-full text-sm" style="min-width:900px"><thead><tr><th class="th">Araç</th><th class="th">Muayene bitişi</th><th class="th">Trafik sigortası bitişi</th><th class="th">Kasko bitişi</th><th class="th">Güncel km</th><th class="th">Sonraki bakım km</th><th class="th">Bakım aralığı (km)</th></tr></thead><tbody id="maint-tbody" class="divide-y divide-slate-200"></tbody></table>
+    </div>
+   </section>
+
+   <section id="tab-settings" class="tab-content space-y-5">
+    <div data-admin id="settings-summary" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
+    <div data-keep class="card p-5 space-y-4">
+     <div class="lx-section-head"><div class="lx-section-icon"><svg class="ic"><use href="#i-cloud"/></svg></div><div class="flex-1"><h3 class="font-semibold">Bulut ve ekip</h3><p class="text-[13px] text-slate-500">Giriş yapınca kayıtlar ekipteki tüm telefonlarla anında eşitlenir. İnternet yokken kayıt telefonda tutulur, bağlantı gelince gönderilir.</p></div></div>
+     <div id="lojix-cloud-box" class="space-y-3">
+      <div id="lojix-cloud-fields" class="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+       <input id="lojix-cloud-email" class="inp" type="email" autocomplete="username" placeholder="E-posta" aria-label="E-posta">
+       <input id="lojix-cloud-password" class="inp" type="password" autocomplete="current-password" placeholder="Parola" aria-label="Parola">
+       <div class="flex gap-2"><button id="lojix-cloud-login" type="button" class="btn btn-primary">Giriş yap</button><button id="lojix-cloud-reset" type="button" class="btn btn-quiet">Parolamı unuttum</button></div>
+      </div>
+      <div id="lojix-cloud-actions" class="flex flex-wrap items-center gap-2" style="display:none"><span class="text-sm">Oturum: <b id="lojix-cloud-user"></b></span><button id="lojix-cloud-refresh" type="button" class="btn btn-quiet md:ml-auto"><svg class="ic"><use href="#i-refresh"/></svg>Yeniden eşitle</button><button id="lojix-cloud-logout" type="button" class="btn btn-danger">Çıkış yap</button></div>
+      <div id="lojix-cloud-status" class="text-[13px] text-slate-500">Bulut hazırlanıyor…</div>
+     </div>
+    </div>
+    <div data-admin class="card p-5 space-y-4">
+     <div class="lx-section-head"><div class="lx-section-icon"><svg class="ic"><use href="#i-truck"/></svg></div><div class="flex-1"><h3 class="font-semibold">Araçlar ve şoförler</h3><p class="text-[13px] text-slate-500">Plaka, dorse, model, frigo ünitesi ve şoför iletişim bilgileri.</p></div><button data-w onclick="openVehicleModal()" class="btn btn-quiet"><svg class="ic"><use href="#i-plus"/></svg>Araç ekle</button><button data-w onclick="saveFleet()" class="btn btn-primary"><svg class="ic"><use href="#i-check"/></svg>Filoyu kaydet</button></div>
+     <div class="overflow-x-auto"><table class="w-full text-sm" style="min-width:900px"><thead><tr><th class="th">#</th><th class="th">Çekici plakası</th><th class="th">Dorse plakası</th><th class="th">Çekici model</th><th class="th">Frigo ünite</th><th class="th">Şoför</th><th class="th">Telefon</th><th class="th"></th></tr></thead><tbody id="set-tbody"></tbody></table></div>
+    </div>
+    <div data-admin class="card p-5 space-y-4">
+     <div class="lx-section-head"><div class="lx-section-icon"><svg class="ic"><use href="#i-building"/></svg></div><div class="flex-1"><h3 class="font-semibold">Aracı şirketler</h3><p class="text-[13px] text-slate-500">Seferde şirket seçilince karttaki kesinti oranı uygulanır. Eski seferlerin oranı değişmez.</p></div><button data-w onclick="addIntermediaryCompany()" class="btn btn-quiet"><svg class="ic"><use href="#i-plus"/></svg>Şirket ekle</button></div>
+     <div id="intermediaryCompanyRows" class="space-y-3"></div>
+    </div>
+    <div data-admin class="card p-5 space-y-4">
+     <div class="lx-section-head"><div class="lx-section-icon"><svg class="ic"><use href="#i-download"/></svg></div><div class="flex-1"><h3 class="font-semibold">Yedek ve dışa aktarma</h3><p class="text-[13px] text-slate-500">Bulut eşitlemesine ek güvence: ayda bir JSON yedeği indirip saklayın.</p></div></div>
+     <div class="flex flex-wrap gap-2">
+      <button onclick="exportJSON()" class="btn btn-quiet"><svg class="ic"><use href="#i-download"/></svg>JSON yedeği indir</button>
+      <label data-w class="btn btn-quiet cursor-pointer"><svg class="ic"><use href="#i-upload"/></svg>Yedekten geri yükle<input type="file" accept=".json,application/json" onchange="importJSON(event)" class="hidden"></label>
+      <button onclick="exportCSV()" class="btn btn-quiet"><svg class="ic"><use href="#i-table"/></svg>Excel (CSV)</button>
+      <button onclick="printReport()" class="btn btn-quiet"><svg class="ic"><use href="#i-printer"/></svg>Yazdır</button>
+      <button data-w onclick="resetAll()" class="btn btn-danger md:ml-auto"><svg class="ic"><use href="#i-trash"/></svg>Tüm kayıtları sil</button>
+     </div>
+    </div>
+    <div data-keep class="card p-5">
+     <div class="lx-section-head !border-0 !pb-3"><div class="lx-section-icon"><svg class="ic"><use href="#i-contrast"/></svg></div><div class="flex-1"><h3 class="font-semibold">Görünüm</h3><p class="text-[13px] text-slate-500">Tema yalnızca bu telefonda değişir; her kullanıcı kendi seçer.</p></div></div>
+     <div class="theme-grid" role="radiogroup" aria-label="Tema">
+      <button type="button" class="theme-opt" role="radio" data-theme-opt="dark" onclick="setTheme('dark')"><span class="sw sw-dark"><i></i><i></i><i></i></span><b>Koyu kokpit</b><small>Gece mavisi, parlak göstergeler</small></button>
+      <button type="button" class="theme-opt" role="radio" data-theme-opt="light" onclick="setTheme('light')"><span class="sw sw-light"><i></i><i></i><i></i></span><b>Açık ve ferah</b><small>Beyaz, bol boşluk, yumuşak</small></button>
+      <button type="button" class="theme-opt" role="radio" data-theme-opt="brand" onclick="setTheme('brand')"><span class="sw sw-brand"><i></i><i></i><i></i></span><b>Marka renkli</b><small>Lacivert bant, turuncu düğmeler</small></button>
+      <button type="button" class="theme-opt" role="radio" data-theme-opt="auto" onclick="setTheme('auto')"><span class="sw sw-auto"></span><b>Telefona göre</b><small>Gündüz açık, gece koyu</small></button>
+     </div>
+    </div>
+    <div data-owner class="card p-5 space-y-4">
+     <div class="lx-section-head"><div class="lx-section-icon"><svg class="ic"><use href="#i-users"/></svg></div><div class="flex-1"><h3 class="font-semibold">Kullanıcılar ve yetkiler</h3><p class="text-[13px] text-slate-500">Her kişiye bir rol verin. Yönetici her şeyi görür ve değiştirir; görüntüleyici yalnızca görür; iş ortağı kendi sefer, gider ve yakıtını; şoför yalnızca kendi yakıt ve giderini girer. İş ortağı ve şoförün sildiği ya da düzenlediği kayıtlar 15 gün çöp kutusunda durur; kimin ne girdiği kayıtlarda yazar.</p></div></div>
+     <div id="users-list"></div>
+     <p id="users-note" class="text-[13px] text-slate-500"></p>
+     <form id="userForm" onsubmit="addUser(event)" class="grid gap-2 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_170px_1fr_auto]" hidden>
+      <input id="userName" class="inp" placeholder="Ad soyad" aria-label="Ad soyad" maxlength="80">
+      <input id="userEmail" class="inp" type="email" placeholder="E-posta" aria-label="E-posta" required>
+      <select id="userRole" class="inp" aria-label="Rol" onchange="userRoleChanged()"><option value="partner">İş ortağı</option><option value="driver">Şoför</option><option value="viewer">Görüntüleyici</option><option value="admin">Yönetici</option></select>
+      <div id="userCompanyBox"><select id="userCompany" class="inp" aria-label="Bağlı olduğu aracı şirket"></select></div>
+      <div id="userVehicleBox" hidden><select id="userVehicle" class="inp" aria-label="Şoförün aracı"></select></div>
+      <button class="btn btn-primary" type="submit"><svg class="ic"><use href="#i-plus"/></svg>Kullanıcı ekle</button>
+     </form>
+     <p class="text-[12.5px] text-slate-500">Eklediğiniz kişinin giriş hesabı kendiliğinden açılır ve e-postasına parola belirleme bağlantısı gider. Rolü listeden değiştirebilir, çöp kutusu simgesiyle erişimini kaldırabilirsiniz; kaldırılan kişinin eklediği kayıtlar silinmez.</p>
+    </div>
+   </section>
+
+   <section id="tab-trash" class="tab-content space-y-4">
+    <div class="flex items-center justify-between gap-3 flex-wrap"><p class="text-sm text-slate-500 max-w-[62ch]">Silinen kayıtlar ve iş ortağının düzenlediği kayıtların eski hâli 15 gün burada durur, sonra kendiliğinden silinir. "Geri al" kaydı yerine koyar; düzenlemede eski hâline döndürür.</p><span id="trash-count" class="pill bg-slate-100 text-slate-700"></span></div>
+    <div id="trash-list" class="mlist"></div>
+   </section>
+  </main>
+ </div>
+</div>
+
+<nav id="mnav" class="md:hidden fixed bottom-0 inset-x-0 flex z-30" aria-label="Ana menü"></nav>
+<button id="fab" onclick="openSheet('quickSheet')" aria-label="Yeni kayıt"><svg class="ic ic-lg"><use href="#i-plus"/></svg></button>
+
+<div id="quickSheet" class="sheet-wrap" onclick="if(event.target===this)closeSheet(this.id)" role="dialog" aria-modal="true" aria-label="Yeni kayıt">
+ <div class="sheet"><div class="sheet-grip"></div>
+  <form onsubmit="event.preventDefault();runAssistant()" class="flex gap-2 mb-1">
+   <input id="asst-input" type="text" enterkeyhint="send" autocomplete="off" class="inp flex-1 min-w-0" placeholder="Söyleyin ya da yazın: 101 Antalya'dan İstanbul'a 45 bin…" aria-label="Asistana söyleyin">
+   <button type="button" id="asst-mic" onclick="asstListen()" class="btn btn-primary !w-12 !px-0" aria-label="Sesle söyle" aria-pressed="false"><svg class="ic"><use href="#i-mic"/></svg></button>
+   <button type="submit" class="btn btn-quiet !w-12 !px-0" aria-label="Gönder"><svg class="ic"><use href="#i-send"/></svg></button>
+  </form>
+  <div id="asst-out" class="hidden text-[13.5px] text-slate-600 px-1 pb-2 leading-relaxed" aria-live="polite"></div>
+  <button type="button" class="text-[13px] text-blue-600 font-semibold px-1 pb-2" onclick="asstSay(lxHelp())">Neler söyleyebilirim?</button>
+  <button class="sheet-item" onclick="quick('tripModal')"><span class="sheet-ic bg-emerald-100 text-emerald-700"><svg class="ic"><use href="#i-route"/></svg></span><span>Sefer<small>Navlun, güzergâh, müşteri</small></span></button>
+  <button class="sheet-item" onclick="quick('fuelModal')"><span class="sheet-ic bg-sky-100 text-sky-700"><svg class="ic"><use href="#i-fuel"/></svg></span><span>Yakıt<small>Çekici, frigo, AdBlue</small></span></button>
+  <button class="sheet-item" onclick="quick('expenseModal')"><span class="sheet-ic bg-rose-100 text-rose-700"><svg class="ic"><use href="#i-receipt"/></svg></span><span>Gider<small>Şoför, bakım, HGS, sigorta</small></span></button>
+  <button class="sheet-item" data-admin onclick="quick('payModal')"><span class="sheet-ic bg-blue-100 text-blue-700"><svg class="ic"><use href="#i-wallet"/></svg></span><span>Tahsilat<small>Müşteriden gelen ödeme</small></span></button>
+ </div>
+</div>
+<div id="moreSheet" class="sheet-wrap" onclick="if(event.target===this)closeSheet(this.id)" role="dialog" aria-modal="true" aria-label="Diğer sayfalar">
+ <div class="sheet"><div class="sheet-grip"></div><div id="moreList"></div></div>
+</div>
+
+<datalist id="stationSuggestions"></datalist><datalist id="clientSuggestions"></datalist><datalist id="routeSuggestions"></datalist><datalist id="cargoSuggestions"></datalist><datalist id="expenseNoteSuggestions"></datalist><datalist id="paymentNoteSuggestions"></datalist><datalist id="modelSuggestions"></datalist><datalist id="frigoSuggestions"></datalist><datalist id="driverSuggestions"></datalist><datalist id="plateSuggestions"></datalist><datalist id="dorseSuggestions"></datalist><div id="modals"></div>
+<script src="js/core.js"></script>
+<script src="js/report.js"></script>
+<script src="js/app.js"></script>
+<script src="js/assistant.js"></script>
+<script src="js/auto.js"></script>
+<script src="js/roles.js"></script>
+<script src="firebase-config.js"></script>
+<script src="js/sync.js"></script>
+<script>if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('/sw.js').catch(()=>{})</script>
+</body>
+</html>
