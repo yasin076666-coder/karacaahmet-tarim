@@ -13,32 +13,32 @@
 /* Koyu kokpit (varsayılan): gece mavisi zemin, parlak göstergeler. */
 :root {
   color-scheme: dark;
-  --bg: #060B14; --surface: #0D1626; --raised: #121E33; --sunken: #09121F;
-  --line: #1B2A42; --line-strong: #29405F;
+  --bg: #050B17; --surface: #0B1730; --raised: #102040; --sunken: #081226;
+  --line: #1A2C4D; --line-strong: #26406B;
   --text: #EAF2FF; --muted: #8DA1BE; --faint: #5E7392;
-  --brand: #2F6FD6; --brand-hover: #3D80EA; --brand-soft: #13284A; --brand-text: #82B8FF;
-  --ice: #3BE0FF; --ice-soft: #0D2D3D;
+  --brand: #2478C0; --brand-hover: #2D88D6; --brand-soft: #0F2A52; --brand-text: #6CC2FF;
+  --ice: #3CC0F0; --ice-soft: #0B2D45;
   --pos: #33F0A6; --pos-soft: #0D3329;
   --neg: #FF5C7A; --neg-soft: #3B1522;
   --warn: #FFC24A; --warn-soft: #3A2C10;
   --violet: #B9A6FF; --violet-soft: #241F4A;
-  --nav: #050A12; --nav-text: #8597B2; --nav-active: #FFFFFF; --accent: #FF8A2A; --accent-soft: #3A2210;
+  --nav: #040A15; --nav-text: #8597B2; --nav-active: #FFFFFF; --accent: #F47A1F; --accent-soft: #3A2210;
   --shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 10px 30px rgba(0,0,0,.35);
   --focus: 0 0 0 3px rgba(59,224,255,.35);
 }
 /* Açık ve ferah: Ayarlar'dan seçilir ya da "Telefona göre" seçiliyken gündüz modunda. */
 :root[data-theme=light] {
   color-scheme: light;
-  --bg: #EEF2F7; --surface: #FFFFFF; --raised: #F7F9FC; --sunken: #F1F4F9;
+  --bg: #E9EDF3; --surface: #FFFFFF; --raised: #F7F9FC; --sunken: #F1F4F9;
   --line: #DCE3EC; --line-strong: #C5D0DE;
   --text: #0E1B2E; --muted: #5A6A80; --faint: #8796AA;
-  --brand: #0A3A78; --brand-hover: #0D4A98; --brand-soft: #E3ECF8; --brand-text: #1756B5;
-  --ice: #0A7FAF; --ice-soft: #E1F3FA;
+  --brand: #0C306C; --brand-hover: #123F8A; --brand-soft: #DDE9F8; --brand-text: #1F63B8;
+  --ice: #1A8FD0; --ice-soft: #DDF1FB;
   --pos: #0C8A62; --pos-soft: #DFF5EC;
   --neg: #CF3049; --neg-soft: #FCE6E9;
   --warn: #A8650D; --warn-soft: #FCF0DA;
   --violet: #6247C7; --violet-soft: #ECE8FB;
-  --nav: #0B1626; --nav-text: #A9B8CC; --nav-active: #FFFFFF; --accent: #F26B00; --accent-soft: #FFEBDC;
+  --nav: #0C306C; --nav-text: #A9B8CC; --nav-active: #FFFFFF; --accent: #F06A00; --accent-soft: #FFE9D6;
   --shadow: 0 1px 2px rgba(14,27,46,.06), 0 4px 16px rgba(14,27,46,.05);
   --focus: 0 0 0 3px rgba(23,86,181,.28);
 }
@@ -309,14 +309,14 @@ body.ro #fab, body.ro [data-w], body.ro .row-act, body.ro .mc-act, body.ro #set-
 @media (max-width: 767px) { #monthFilter { max-width: 132px; } header.app-head { flex-wrap: nowrap; } #page-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .cloud-chip { font-size: 11.5px; padding: 2px 8px 2px 7px; } }
 
 /* ---- Açık ve ferah: yumuşak gölgeler, daha yuvarlak kartlar ---- */
-:root[data-theme=light] { --bg: #F4F6FA; }
+:root[data-theme=light] { --bg: #E9EDF3; }
 :root[data-theme=light] .card, :root[data-theme=light] .mcard, :root[data-theme=light] .quick { border-radius: 20px; border-color: #E5EAF1; box-shadow: 0 1px 2px rgba(14,27,46,.04), 0 10px 28px rgba(14,27,46,.06); }
 :root[data-theme=light] .kpi-hero { border-radius: 20px; }
 
 /* ---- Marka renkli: lacivert üst bant, turuncu düğmeler (logodaki renkler) ---- */
 :root[data-theme=brand] {
   color-scheme: light;
-  --bg: #EEF2F7; --surface: #FFFFFF; --raised: #F7F9FC; --sunken: #F1F4F9;
+  --bg: #E6EAF1; --surface: #FFFFFF; --raised: #F7F9FC; --sunken: #F1F4F9;
   --line: #DCE3EC; --line-strong: #C5D0DE;
   --text: #0E1B2E; --muted: #5A6A80; --faint: #8796AA;
   --brand: #0A3A78; --brand-hover: #0D4A98; --brand-soft: #E3ECF8; --brand-text: #1756B5;
@@ -325,19 +325,19 @@ body.ro #fab, body.ro [data-w], body.ro .row-act, body.ro .mc-act, body.ro #set-
   --neg: #CF3049; --neg-soft: #FCE6E9;
   --warn: #A8650D; --warn-soft: #FCF0DA;
   --violet: #6247C7; --violet-soft: #ECE8FB;
-  --nav: #0B1626; --nav-text: #A9B8CC; --nav-active: #FFFFFF; --accent: #F26B00; --accent-soft: #FFEBDC;
+  --nav: #0C306C; --nav-text: #A9B8CC; --nav-active: #FFFFFF; --accent: #F26B00; --accent-soft: #FFEBDC;
   --shadow: 0 1px 2px rgba(14,27,46,.06), 0 4px 16px rgba(14,27,46,.05);
   --focus: 0 0 0 3px rgba(23,86,181,.28);
-  --bg: #EEF2F8; --brand: #C2410C; --brand-hover: #9A3412; --brand-soft: #FFEDD5; --brand-text: #C2410C; --accent: #F26B00; --accent-soft: #FFEDD5;
+  --bg: #E6EAF1; --brand: #C2410C; --brand-hover: #9A3412; --brand-soft: #FFEDD5; --brand-text: #C2410C; --accent: #F26B00; --accent-soft: #FFEDD5;
 }
-:root[data-theme=brand] header.app-head { background: #0A2A5C; border-color: #0A2A5C; color: #fff; }
+:root[data-theme=brand] header.app-head { background: linear-gradient(90deg, #0C306C, #1C5BB0); border-color: #0C306C; color: #fff; }
 :root[data-theme=brand] header.app-head #page-title { color: #fff; }
 :root[data-theme=brand] header.app-head .sel { background: rgba(255,255,255,.1); color: #fff; border-color: rgba(255,255,255,.28); }
 :root[data-theme=brand] header.app-head .sel option { color: #0E1B2E; }
 :root[data-theme=brand] header.app-head .btn-icon { color: #C9D6EA; }
 :root[data-theme=brand] header.app-head .cloud-chip { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.28); color: #DCE6F5; }
 :root[data-theme=brand] header.app-head .cloud-chip[data-state=ok] { color: #7CF0C2; }
-:root[data-theme=brand] .kpi-hero { background: linear-gradient(135deg, #F26B00 0%, #C2410C 100%); }
+:root[data-theme=brand] .kpi-hero { background: linear-gradient(135deg, #F7931E 0%, #E35A00 55%, #C2410C 100%); }
 :root[data-theme=brand] .kpi-hero::after { border-color: rgba(255,255,255,.14); }
 :root[data-theme=brand] .kpi-hero .kpi-label, :root[data-theme=brand] .kpi-hero .kpi-sub { color: #FFE7D6; }
 :root[data-theme=brand] .spark polyline { stroke: #fff; filter: none; }
@@ -355,5 +355,27 @@ body.ro #fab, body.ro [data-w], body.ro .row-act, body.ro .mc-act, body.ro #set-
 .sw i { position: absolute; display: block; border-radius: 4px; }
 .sw-dark { background: #060B14; } .sw-dark i:nth-child(1) { left: 8px; top: 8px; width: 46%; height: 18px; background: #0B2C5C; box-shadow: 0 0 10px rgba(59,224,255,.5); } .sw-dark i:nth-child(2) { left: 8px; bottom: 8px; width: 28px; height: 28px; border-radius: 50%; border: 4px solid #33F0A6; border-bottom-color: transparent; } .sw-dark i:nth-child(3) { right: 8px; bottom: 10px; width: 30%; height: 8px; background: #3BE0FF; }
 .sw-light { background: #F4F6FA; } .sw-light i:nth-child(1) { left: 8px; top: 8px; width: 46%; height: 18px; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.1); border-radius: 7px; } .sw-light i:nth-child(2) { left: 8px; bottom: 8px; width: 26%; height: 22px; background: #fff; border-radius: 7px; box-shadow: 0 2px 6px rgba(0,0,0,.1); } .sw-light i:nth-child(3) { right: 8px; bottom: 8px; width: 34%; height: 22px; background: #0A3A78; border-radius: 7px; }
-.sw-brand { background: #EEF2F8; } .sw-brand i:nth-child(1) { left: 0; top: 0; right: 0; height: 18px; background: #0A2A5C; border-radius: 0; } .sw-brand i:nth-child(2) { left: 8px; bottom: 8px; width: 46%; height: 22px; background: linear-gradient(135deg,#F26B00,#C2410C); } .sw-brand i:nth-child(3) { right: 8px; bottom: 8px; width: 26%; height: 22px; background: #C2410C; border-radius: 7px; }
+.sw-brand { background: #EEF2F8; } .sw-brand i:nth-child(1) { left: 0; top: 0; right: 0; height: 18px; background: linear-gradient(90deg,#0C306C,#1C5BB0); border-radius: 0; } .sw-brand i:nth-child(2) { left: 8px; bottom: 8px; width: 46%; height: 22px; background: linear-gradient(135deg,#F26B00,#C2410C); } .sw-brand i:nth-child(3) { right: 8px; bottom: 8px; width: 26%; height: 22px; background: #C2410C; border-radius: 7px; }
 .sw-auto { background: linear-gradient(135deg, #F4F6FA 50%, #060B14 50%); }
+
+/* ---- Logodan gelen motifler ---- */
+/* Noktalı dünya haritası dokusu: tüm temalarda çok hafif nokta matrisi */
+:root:not([data-theme]) body { background:
+  radial-gradient(1100px 520px at 85% -8%, rgba(60,192,240,.10), transparent 60%),
+  radial-gradient(800px 480px at -10% 30%, rgba(244,122,31,.06), transparent 60%),
+  radial-gradient(rgba(120,170,255,.10) 1px, transparent 1.6px) 0 0 / 16px 16px, var(--bg); background-attachment: fixed; }
+:root[data-theme=light] body, :root[data-theme=brand] body { background: radial-gradient(rgba(12,48,108,.07) 1px, transparent 1.6px) 0 0 / 16px 16px, linear-gradient(180deg, #F1F4F8, var(--bg)); background-attachment: fixed; }
+/* Net kâr kutusu: logodaki parlak mavi harfler ve şehirleri birleştiren hatlar */
+.kpi-hero { background-image: var(--hero-net), linear-gradient(135deg, #0C306C 0%, #1C5BB0 58%, #2478C0 100%) !important; background-position: right center, 0 0 !important; background-size: auto 100%, cover !important; background-repeat: no-repeat !important; }
+:root:not([data-theme]) .kpi-hero { background-image: var(--hero-net), radial-gradient(420px 220px at 90% 0%, rgba(60,192,240,.25), transparent 70%), linear-gradient(135deg, #0C306C 0%, #0A2550 70%) !important; }
+:root[data-theme=brand] .kpi-hero { background-image: var(--hero-net), linear-gradient(135deg, #F7931E 0%, #E35A00 55%, #C2410C 100%) !important; }
+:root { --hero-net: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 160'%3E%3Cg fill='none' stroke='%23ffffff' stroke-opacity='.16' stroke-width='1'%3E%3Cpath d='M210 120 Q260 40 330 52'/%3E%3Cpath d='M330 52 Q360 90 388 120'/%3E%3Cpath d='M250 20 Q300 10 330 52'/%3E%3Cpath d='M210 120 Q300 140 388 120'/%3E%3C/g%3E%3Cg fill='%23ffffff' fill-opacity='.35'%3E%3Ccircle cx='210' cy='120' r='3'/%3E%3Ccircle cx='330' cy='52' r='3.5'/%3E%3Ccircle cx='388' cy='120' r='3'/%3E%3Ccircle cx='250' cy='20' r='2.5'/%3E%3C/g%3E%3C/svg%3E"); }
+.kpi-hero::after { display: none; }
+/* Açılış: logonun kendi zemin rengi, turuncu ilerleme çizgisi */
+#splash { background: radial-gradient(circle at 50% 42%, #F4F6F9 0%, #E6E7EC 70%); }
+#splash img { width: min(62vw, 260px); height: auto; border-radius: 28px; box-shadow: 0 18px 50px rgba(12,48,108,.18); }
+#splash .bar::after { background: linear-gradient(90deg, #F7931E, #F06A00); }
+/* Logo karosu: logonun zemini açık gri-mavi */
+.logo-tile { background: #E6E7EC; }
+/* Turuncu artı düğmesi logodaki ok gibi */
+#fab { background: linear-gradient(135deg, #F7931E, #F06A00); }

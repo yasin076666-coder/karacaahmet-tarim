@@ -1,7 +1,7 @@
 function reportDateTR(v){if(!v)return '—';const d=new Date(v+'T12:00:00');return Number.isNaN(d.getTime())?String(v):d.toLocaleDateString('tr-TR')}
 function reportMoney(v){return new Intl.NumberFormat('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(v)||0)+' ₺'}
 function reportEscape(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function reportLogo(){const l=document.querySelector('link[rel="apple-touch-icon"]');return l?.href||''}
+function reportLogo(){return new URL('img/logo-640.jpg',location.href).href}  // yüksek çözünürlüklü logo: PDF'te keskin
 /* ===== LOJIX rapor / PDF (iPhone ana ekran uygulaması uyumlu) =====
    Eski sürüm window.open + window.print kullanıyordu; iOS'ta ana ekrana eklenen uygulamada ikisi de çalışmaz.
    Yeni sürüm: rapor uygulama içinde önizlenir, "PDF Paylaş" gerçek bir PDF dosyası üretip iOS paylaşım menüsünü açar. */
@@ -21,7 +21,7 @@ function lxPrepLogo(){
   const src=reportLogo();if(!src)return;
   const img=new Image();
   img.onload=()=>{try{
-   const s=160,c=document.createElement('canvas');c.width=c.height=s;const x=c.getContext('2d');
+   const s=300,c=document.createElement('canvas');c.width=c.height=s;const x=c.getContext('2d');
    x.fillStyle='#fff';x.fillRect(0,0,s,s);x.drawImage(img,0,0,s,s);
    const b=atob(c.toDataURL('image/jpeg',0.9).split(',')[1]),u=new Uint8Array(b.length);
    for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);

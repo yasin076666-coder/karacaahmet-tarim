@@ -1,6 +1,6 @@
 // Önce ağ, ağ yoksa önbellek: internet varken her zaman güncel dosya gelir,
 // internet yokken uygulama son çalışan sürümüyle açılır.
-const CACHE = 'lojix-v1';
+const CACHE = 'lojix-v2';
 const CDN = ['https://www.gstatic.com/firebasejs/'];  // Firestore/kimlik istekleri asla önbelleğe girmez
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(

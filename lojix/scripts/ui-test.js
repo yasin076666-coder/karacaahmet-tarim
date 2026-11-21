@@ -152,7 +152,7 @@ async function run() {
     await P.evaluate(() => closeModal('expenseModal'));
     await P.evaluate(() => switchTab('dashboard'));
     check((await P.textContent('#cloud-banner')).includes('Bulut bağlı değil') && await P.isVisible('#cloud-banner'), 'Giriş yokken bulut uyarısı görünüyor');
-    check(await P.evaluate(() => getComputedStyle(document.body).backgroundColor) === 'rgb(6, 11, 20)', 'Varsayılan tema koyu kokpit');
+    check(await P.evaluate(() => !document.documentElement.dataset.theme && getComputedStyle(document.documentElement).getPropertyValue('--bg').trim().toUpperCase() === '#050B17'), 'Varsayılan tema koyu kokpit');
     check(await P.locator('#gauges .gauge').count() === 4, 'Dört gösterge çizildi');
     await P.evaluate(() => setTheme('brand'));
     check(await P.evaluate(() => document.documentElement.dataset.theme === 'brand' && localStorage.getItem('LOJIX_THEME') === 'brand' && document.querySelector('[data-theme-opt=brand]').getAttribute('aria-checked') === 'true'), 'Marka renkli tema seçildi ve saklandı');
