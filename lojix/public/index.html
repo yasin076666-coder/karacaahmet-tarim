@@ -8,8 +8,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Lojix">
-<meta name="theme-color" content="#0B1626">
-<script>try{const t=localStorage.getItem('LOJIX_THEME');if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
+<meta name="theme-color" content="#060B14">
+<script>try{const t=localStorage.getItem('LOJIX_THEME');if(t==="light"||t==="auto")document.documentElement.dataset.theme=t}catch(e){}</script>
 <link rel="preload" href="fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
 <title>Lojix | Lojistikte Akıllı Çözümler</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -62,28 +62,30 @@
  </aside>
  <div class="flex-1 min-w-0 flex flex-col">
   <header class="app-head px-4 md:px-8 py-3 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-20" style="padding-top:max(0.75rem,env(safe-area-inset-top))">
-   <div class="flex items-center gap-2.5 min-w-0"><img class="lojix-logo logo-tile w-9 h-9 !rounded-[10px] !p-0.5 md:hidden" src="img/icon-192.png" alt="Lojix"><h1 id="page-title">Özet</h1><button id="sync-pill" data-state="off" onclick="switchTab('settings')" class="sync-pill" aria-label="Bulut eşitleme durumu" title="Bulut bağlı değil"></button></div>
+   <div class="flex items-center gap-2.5 min-w-0"><img class="lojix-logo logo-tile w-9 h-9 !rounded-[10px] !p-0.5 md:hidden" src="img/icon-192.png" alt="Lojix"><h1 id="page-title">Özet</h1><button id="cloud-chip" data-state="off" onclick="switchTab('settings')" class="cloud-chip" aria-label="Bulut durumu, ayarları aç">Bağlı değil</button></div>
    <div class="flex items-center gap-2 flex-wrap">
     <select id="monthFilter" onchange="onPeriodChange()" class="sel" aria-label="Dönem"></select>
     <div id="dateRangeControls" class="items-center gap-1" style="display:none"><input id="globalStartDate" type="date" class="sel" aria-label="Başlangıç tarihi" onchange="renderAll()"><span class="text-slate-500">–</span><input id="globalEndDate" type="date" class="sel" aria-label="Bitiş tarihi" onchange="renderAll()"></div>
     <button onclick="printReport()" class="btn btn-icon hidden md:inline-flex" title="Yazdır" aria-label="Sayfayı yazdır"><svg class="ic"><use href="#i-printer"/></svg></button>
-    <button onclick="openSheet('quickSheet')" class="btn btn-primary hidden md:inline-flex"><svg class="ic"><use href="#i-plus"/></svg>Yeni kayıt</button>
+    <button data-w onclick="openSheet('quickSheet')" class="btn btn-primary hidden md:inline-flex"><svg class="ic"><use href="#i-plus"/></svg>Yeni kayıt</button>
    </div>
   </header>
   <main class="px-4 py-5 md:px-8 md:py-7 flex-1 overflow-x-hidden max-w-[1400px] w-full">
    <div id="print-head"><img class="lojix-logo" style="width:56px;height:56px;border-radius:12px" alt=""><div><div style="font-size:22px;font-weight:700;color:#0a3a78">Lojix</div><div id="print-meta" style="font-size:12px;color:#475569;margin-top:2px"></div></div></div>
 
    <section id="tab-dashboard" class="tab-content active space-y-5">
+    <div id="cloud-banner" class="cloud-banner !mb-0" hidden role="status"></div>
     <div class="hello"><div class="min-w-0"><div id="hello-date" class="hello-date"></div><h2 id="hello-title">Merhaba</h2><p id="hello-sum"></p></div></div>
     <div class="quick-grid">
-     <button class="quick" onclick="openModal('tripModal')"><span class="q-ic bg-emerald-100 text-emerald-700"><svg class="ic ic-lg"><use href="#i-route"/></svg></span>Sefer</button>
-     <button class="quick" onclick="openModal('fuelModal')"><span class="q-ic bg-sky-100 text-sky-700"><svg class="ic ic-lg"><use href="#i-fuel"/></svg></span>Yakıt</button>
-     <button class="quick" onclick="openModal('expenseModal')"><span class="q-ic bg-rose-100 text-rose-700"><svg class="ic ic-lg"><use href="#i-receipt"/></svg></span>Gider</button>
-     <button class="quick" onclick="openModal('payModal')"><span class="q-ic bg-blue-100 text-blue-700"><svg class="ic ic-lg"><use href="#i-wallet"/></svg></span>Tahsilat</button>
+     <button data-w class="quick" onclick="openModal('tripModal')"><span class="q-ic bg-emerald-100 text-emerald-700"><svg class="ic ic-lg"><use href="#i-route"/></svg></span>Sefer</button>
+     <button data-w class="quick" onclick="openModal('fuelModal')"><span class="q-ic bg-sky-100 text-sky-700"><svg class="ic ic-lg"><use href="#i-fuel"/></svg></span>Yakıt</button>
+     <button data-w class="quick" onclick="openModal('expenseModal')"><span class="q-ic bg-rose-100 text-rose-700"><svg class="ic ic-lg"><use href="#i-receipt"/></svg></span>Gider</button>
+     <button data-w class="quick" onclick="openModal('payModal')"><span class="q-ic bg-blue-100 text-blue-700"><svg class="ic ic-lg"><use href="#i-wallet"/></svg></span>Tahsilat</button>
      <button class="quick voice" onclick="asstListen()" aria-label="Sesle kayıt"><span class="q-ic"><svg class="ic ic-lg"><use href="#i-mic"/></svg></span>Söyle</button>
     </div>
     <div id="alerts-box"></div>
     <div id="kpis" class="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4"></div>
+    <div id="gauges" class="gauges"></div>
     <div class="grid grid-cols-1 xl:grid-cols-5 gap-5">
      <div class="card p-5 xl:col-span-3">
       <div class="flex items-center justify-between gap-3 flex-wrap mb-3"><h3 class="font-semibold text-[17px]">Son 6 ay</h3><div class="legend"><span style="--c:var(--ice)">Navlun</span><span style="--c:var(--line-strong)">Gider ve kesinti</span><span style="--c:var(--pos)">Net</span></div></div>
@@ -117,7 +119,7 @@
      <div><label class="lbl" for="cariStart">Başlangıç</label><input id="cariStart" type="date" class="inp" onchange="renderCari()"></div>
      <div><label class="lbl" for="cariEnd">Bitiş</label><input id="cariEnd" type="date" class="inp" onchange="renderCari()"></div>
      <button class="btn btn-quiet" onclick="$('cariStart').value='';$('cariEnd').value='';renderCari()">Tüm tarihler</button>
-     <div class="flex flex-wrap gap-2 md:ml-auto"><button onclick="printCariOverviewPDF()" class="btn btn-quiet"><svg class="ic"><use href="#i-file"/></svg>Genel cari PDF</button><button onclick="createClient()" class="btn btn-quiet"><svg class="ic"><use href="#i-plus"/></svg>Müşteri</button><button onclick="openModal('payModal')" class="btn btn-primary"><svg class="ic"><use href="#i-wallet"/></svg>Tahsilat ekle</button></div>
+     <div class="flex flex-wrap gap-2 md:ml-auto"><button onclick="printCariOverviewPDF()" class="btn btn-quiet"><svg class="ic"><use href="#i-file"/></svg>Genel cari PDF</button><button data-w onclick="createClient()" class="btn btn-quiet"><svg class="ic"><use href="#i-plus"/></svg>Müşteri</button><button data-w onclick="openModal('payModal')" class="btn btn-primary"><svg class="ic"><use href="#i-wallet"/></svg>Tahsilat ekle</button></div>
     </div>
     <div id="cari-kpis" class="grid grid-cols-2 lg:grid-cols-4 gap-3"></div>
     <div class="card overflow-x-auto"><table class="rtable w-full text-sm"><thead><tr><th class="th">Müşteri</th><th class="th text-right">Sefer</th><th class="th text-right">Toplam navlun</th><th class="th text-right">Açık alacak</th><th class="th text-right">Tahsilat</th><th class="th text-right">Kalan bakiye</th><th class="th">Vade</th><th class="th"></th></tr></thead><tbody id="cari-tbody" class="divide-y divide-slate-200"></tbody></table></div>
@@ -158,7 +160,7 @@
    </section>
 
    <section id="tab-maint" class="tab-content space-y-4">
-    <div class="flex flex-wrap items-center justify-between gap-3"><p class="text-sm text-slate-500 max-w-[62ch]">Belge bitişine 30 gün kala uyarı başlar, son 7 günde kırmızıya döner. Planlı bakıma 2.000 km kala uyarı görünür. Sefer km'si ve çekici mazotundaki gösterge km'si aracın km'sini günceller.</p><button onclick="saveMaint()" class="btn btn-primary"><svg class="ic"><use href="#i-check"/></svg>Değişiklikleri kaydet</button></div>
+    <div class="flex flex-wrap items-center justify-between gap-3"><p class="text-sm text-slate-500 max-w-[62ch]">Belge bitişine 30 gün kala uyarı başlar, son 7 günde kırmızıya döner. Planlı bakıma 2.000 km kala uyarı görünür. Sefer km'si ve çekici mazotundaki gösterge km'si aracın km'sini günceller.</p><button data-w onclick="saveMaint()" class="btn btn-primary"><svg class="ic"><use href="#i-check"/></svg>Değişiklikleri kaydet</button></div>
     <div id="maint-summary" class="grid grid-cols-2 xl:grid-cols-4 gap-3"></div>
     <div class="card overflow-x-auto">
      <table class="rtable w-full text-sm" style="min-width:900px"><thead><tr><th class="th">Araç</th><th class="th">Muayene bitişi</th><th class="th">Trafik sigortası bitişi</th><th class="th">Kasko bitişi</th><th class="th">Güncel km</th><th class="th">Sonraki bakım km</th><th class="th">Bakım aralığı (km)</th></tr></thead><tbody id="maint-tbody" class="divide-y divide-slate-200"></tbody></table>
@@ -180,26 +182,26 @@
      </div>
     </div>
     <div class="card p-5 space-y-4">
-     <div class="lx-section-head"><div class="lx-section-icon"><svg class="ic"><use href="#i-truck"/></svg></div><div class="flex-1"><h3 class="font-semibold">Araçlar ve şoförler</h3><p class="text-[13px] text-slate-500">Plaka, dorse, model, frigo ünitesi ve şoför iletişim bilgileri.</p></div><button onclick="openVehicleModal()" class="btn btn-quiet"><svg class="ic"><use href="#i-plus"/></svg>Araç ekle</button><button onclick="saveFleet()" class="btn btn-primary"><svg class="ic"><use href="#i-check"/></svg>Filoyu kaydet</button></div>
+     <div class="lx-section-head"><div class="lx-section-icon"><svg class="ic"><use href="#i-truck"/></svg></div><div class="flex-1"><h3 class="font-semibold">Araçlar ve şoförler</h3><p class="text-[13px] text-slate-500">Plaka, dorse, model, frigo ünitesi ve şoför iletişim bilgileri.</p></div><button data-w onclick="openVehicleModal()" class="btn btn-quiet"><svg class="ic"><use href="#i-plus"/></svg>Araç ekle</button><button data-w onclick="saveFleet()" class="btn btn-primary"><svg class="ic"><use href="#i-check"/></svg>Filoyu kaydet</button></div>
      <div class="overflow-x-auto"><table class="w-full text-sm" style="min-width:900px"><thead><tr><th class="th">#</th><th class="th">Çekici plakası</th><th class="th">Dorse plakası</th><th class="th">Çekici model</th><th class="th">Frigo ünite</th><th class="th">Şoför</th><th class="th">Telefon</th><th class="th"></th></tr></thead><tbody id="set-tbody"></tbody></table></div>
     </div>
     <div class="card p-5 space-y-4">
-     <div class="lx-section-head"><div class="lx-section-icon"><svg class="ic"><use href="#i-building"/></svg></div><div class="flex-1"><h3 class="font-semibold">Aracı şirketler</h3><p class="text-[13px] text-slate-500">Seferde şirket seçilince karttaki kesinti oranı uygulanır. Eski seferlerin oranı değişmez.</p></div><button onclick="addIntermediaryCompany()" class="btn btn-quiet"><svg class="ic"><use href="#i-plus"/></svg>Şirket ekle</button></div>
+     <div class="lx-section-head"><div class="lx-section-icon"><svg class="ic"><use href="#i-building"/></svg></div><div class="flex-1"><h3 class="font-semibold">Aracı şirketler</h3><p class="text-[13px] text-slate-500">Seferde şirket seçilince karttaki kesinti oranı uygulanır. Eski seferlerin oranı değişmez.</p></div><button data-w onclick="addIntermediaryCompany()" class="btn btn-quiet"><svg class="ic"><use href="#i-plus"/></svg>Şirket ekle</button></div>
      <div id="intermediaryCompanyRows" class="space-y-3"></div>
     </div>
     <div class="card p-5 space-y-4">
      <div class="lx-section-head"><div class="lx-section-icon"><svg class="ic"><use href="#i-download"/></svg></div><div class="flex-1"><h3 class="font-semibold">Yedek ve dışa aktarma</h3><p class="text-[13px] text-slate-500">Bulut eşitlemesine ek güvence: ayda bir JSON yedeği indirip saklayın.</p></div></div>
      <div class="flex flex-wrap gap-2">
       <button onclick="exportJSON()" class="btn btn-quiet"><svg class="ic"><use href="#i-download"/></svg>JSON yedeği indir</button>
-      <label class="btn btn-quiet cursor-pointer"><svg class="ic"><use href="#i-upload"/></svg>Yedekten geri yükle<input type="file" accept=".json,application/json" onchange="importJSON(event)" class="hidden"></label>
+      <label data-w class="btn btn-quiet cursor-pointer"><svg class="ic"><use href="#i-upload"/></svg>Yedekten geri yükle<input type="file" accept=".json,application/json" onchange="importJSON(event)" class="hidden"></label>
       <button onclick="exportCSV()" class="btn btn-quiet"><svg class="ic"><use href="#i-table"/></svg>Excel (CSV)</button>
       <button onclick="printReport()" class="btn btn-quiet"><svg class="ic"><use href="#i-printer"/></svg>Yazdır</button>
-      <button onclick="resetAll()" class="btn btn-danger md:ml-auto"><svg class="ic"><use href="#i-trash"/></svg>Tüm kayıtları sil</button>
+      <button data-w onclick="resetAll()" class="btn btn-danger md:ml-auto"><svg class="ic"><use href="#i-trash"/></svg>Tüm kayıtları sil</button>
      </div>
     </div>
     <div class="card p-5">
-     <div class="lx-section-head !border-0 !pb-0"><div class="lx-section-icon"><svg class="ic"><use href="#i-contrast"/></svg></div><div class="flex-1"><h3 class="font-semibold">Görünüm</h3><p class="text-[13px] text-slate-500">Otomatik, telefonun açık/koyu ayarını izler.</p></div>
-      <select id="themeSelect" class="sel" onchange="setTheme(this.value)" aria-label="Tema"><option value="auto">Otomatik</option><option value="light">Açık</option><option value="dark">Koyu</option></select></div>
+     <div class="lx-section-head !border-0 !pb-0"><div class="lx-section-icon"><svg class="ic"><use href="#i-contrast"/></svg></div><div class="flex-1"><h3 class="font-semibold">Görünüm</h3><p class="text-[13px] text-slate-500">Varsayılan koyu kokpit. "Telefona göre" gündüz açık, gece koyu olur.</p></div>
+      <select id="themeSelect" class="sel" onchange="setTheme(this.value)" aria-label="Tema"><option value="dark">Koyu kokpit</option><option value="light">Açık</option><option value="auto">Telefona göre</option></select></div>
     </div>
    </section>
   </main>
@@ -233,6 +235,7 @@
 <script src="js/report.js"></script>
 <script src="js/app.js"></script>
 <script src="js/assistant.js"></script>
+<script src="js/auto.js"></script>
 <script src="firebase-config.js"></script>
 <script src="js/sync.js"></script>
 <script>if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('/sw.js').catch(()=>{})</script>

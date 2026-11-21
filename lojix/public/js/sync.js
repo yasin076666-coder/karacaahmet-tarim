@@ -16,7 +16,9 @@
 
   function say(msg, tone) {
     const el = $('lojix-cloud-status'); if (el) { el.textContent = msg; el.dataset.tone = tone || ''; }
-    const pill = $('sync-pill'); if (pill) { pill.dataset.state = !user ? 'off' : tone === 'error' ? 'error' : tone === 'ok' ? 'ok' : 'busy'; pill.title = msg; }
+    const st = !user ? 'off' : tone === 'error' ? 'error' : tone === 'ok' ? 'ok' : 'busy';
+    const pill = $('sync-pill'); if (pill) { pill.dataset.state = st; pill.title = msg; }
+    window.__lxCloud = st; if (window.renderCloudBanner) window.renderCloudBanner();
   }
 
   // Anahtar sırasından bağımsız JSON: Firestore haritaları başka sırada döndürebilir.
@@ -75,6 +77,11 @@
   // İlk açılış: yerel, sunucu ve taban üçlü birleştirilir.
   async function initialMerge() {
     const first = !Object.keys(base).length;
+    if (window.LX_READONLY) {   // yalnızca görebilen hesap: bulut esastır, buluta hiçbir şey yazılmaz
+      if (first) { try { localStorage.setItem(KEY + '_PRE_SYNC_BACKUP', JSON.stringify(state)); } catch (e) {} }
+      base = Object.assign({}, remote); saveBase(); apply(remote); ready = true;
+      return say('Eşitlendi (yalnızca görüntüleme) • ' + count(remote), 'ok');
+    }
     let server = remote;
     if (!Object.keys(remote).length) { say('Eski bulut kaydı aktarılıyor…'); server = await legacyRemote(); }
     if (first) { try { localStorage.setItem(KEY + '_PRE_SYNC_BACKUP', JSON.stringify(state)); } catch (e) {} }
@@ -110,7 +117,7 @@
 
   // Yerel değişiklik sonrası: farkları gönder.
   async function pushLocal() {
-    if (!user || !ready) return;
+    if (!user || !ready || window.LX_READONLY) return;
     if (busy) { again = true; return; }
     busy = true;
     try {
@@ -152,7 +159,7 @@
       const S = remote[x], B = base[x], L = local[x];
       if (S === B) return;                                           // bulutta değişiklik yok
       if (S === L) { if (S === undefined) delete base[x]; else base[x] = S; return; } // kendi yazdığımız
-      if (L !== B) return;                                           // cihazda da değişmiş: cihazdaki gönderilecek
+      if (L !== B && !window.LX_READONLY) return;                    // cihazda da değişmiş: cihazdaki gönderilecek
       if (S === undefined) { delete next[x]; delete base[x]; } else { next[x] = S; base[x] = S; }
       changed = true;
     });
@@ -184,7 +191,10 @@
     const who = $('lojix-cloud-user'); if (who) who.textContent = signedIn ? (user.email || '') : '';
   }
   function authChanged(u) {
-    user = u || null; ui(!!user);
+    user = u || null;
+    window.LX_READONLY = !!user && !(window.LOJIX_WRITERS || []).includes(user.uid);
+    document.body.classList.toggle('ro', window.LX_READONLY);
+    ui(!!user);
     if (!user) { detach(); say('Giriş yapılmadı. Kayıtlar yalnızca bu cihazda tutuluyor.'); return; }
     attach();
   }

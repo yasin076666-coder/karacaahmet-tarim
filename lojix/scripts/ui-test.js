@@ -128,6 +128,33 @@ async function run() {
     check(await M.getAttribute('#fuelModal .seg button:has-text("AdBlue")', 'aria-pressed') === 'true', 'Kodla atanan değer düğmelere yansıdı');
     await M.close();
 
+    console.log('7) Otomatik yardımlar');
+    await P.evaluate(() => document.querySelectorAll('.modal-wrap.flex').forEach(m => closeModal(m.id)));
+    await P.evaluate(() => openModal('tripModal'));
+    await P.fill('#tripRoute', 'Mersin - İzmir'); await P.dispatchEvent('#tripRoute', 'change');
+    const lastMI = seed.trips.filter(t => t.route === 'Mersin - İzmir').sort((a, b) => b.date.localeCompare(a.date))[0];
+    check(await P.inputValue('#tripPrice') === String(lastMI.price) && await P.inputValue('#tripClient') === lastMI.client && (await P.textContent('#tripModal .auto-hint')).includes('Son seferden'), 'Güzergâh yazılınca son seferin navlunu ve müşterisi geldi');
+    await P.evaluate(() => closeModal('tripModal'));
+    await P.evaluate(() => openModal('fuelModal'));
+    check(await P.inputValue('#fuelUnitPrice') === '44.5' && await P.inputValue('#fuelStation') === 'Opet Afyon', 'Yakıtta son litre fiyatı ve istasyon geldi');
+    await P.evaluate(() => closeModal('fuelModal'));
+    // Yarım form: yazılan değer sayfa yeniden açılınca geri gelir, kaydedilince silinir
+    await P.evaluate(() => openModal('expenseModal')); await P.fill('#expAmount', '1234'); await P.fill('#expNote', 'yarım kalan');
+    // test sayfası her açılışta hafızayı temizlediği için kapanmayı dışarı dokunarak taklit ediyoruz (taslak telefonda kalır)
+    await P.mouse.click(5, 5);
+    check(await P.evaluate(() => !document.getElementById('expenseModal').classList.contains('flex') && !!localStorage.getItem('LOJIX_DRAFT_expenseModal')), 'Form kapandı, taslak telefonda saklı');
+    await P.evaluate(() => openModal('expenseModal'));
+    check(await P.inputValue('#expAmount') === '1234' && await P.inputValue('#expNote') === 'yarım kalan' && await P.isVisible('#expenseModal .draft-bar'), 'Yarım kalan gider formu geri geldi');
+    await submit(P, 'expenseModal');
+    check(await P.evaluate(() => !localStorage.getItem('LOJIX_DRAFT_expenseModal')), 'Kaydedilince taslak silindi');
+    await P.evaluate(() => openModal('expenseModal'));
+    check(await P.inputValue('#expAmount') === '' && !(await P.isVisible('#expenseModal .draft-bar')), 'Sonraki yeni form boş açıldı');
+    await P.evaluate(() => closeModal('expenseModal'));
+    await P.evaluate(() => switchTab('dashboard'));
+    check((await P.textContent('#cloud-banner')).includes('Bulut bağlı değil') && await P.isVisible('#cloud-banner'), 'Giriş yokken bulut uyarısı görünüyor');
+    check(await P.evaluate(() => getComputedStyle(document.body).backgroundColor) === 'rgb(6, 11, 20)', 'Varsayılan tema koyu kokpit');
+    check(await P.locator('#gauges .gauge').count() === 4, 'Dört gösterge çizildi');
+
     for (const p of [E, P]) check(!p.errs.length, 'Sayfa hatası yok ' + p.errs.join(' | '));
   } catch (e) { console.error(e); fails++; }
   await b.close(); srv.close();

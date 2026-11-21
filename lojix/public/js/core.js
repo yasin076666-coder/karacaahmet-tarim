@@ -11,7 +11,7 @@ const mcard=o=>`<article class="mcard"><div class="mc-top"><div class="flex item
 const emptyState=msg=>`<div class="empty-state"><img class="logo-tile" src="img/icon-192.png" alt="">${msg}</div>`;
 const mlist=(id,items,msg)=>{const el=$(id);if(el)el.innerHTML=items.length?items.join(''):emptyState(msg)};
 const NEW_HINT='Sağ alttaki <b>+</b> düğmesiyle ya da <b>Söyle</b> diyerek ekleyin.';
-const rowActions=(col,id,label)=>`<div class="flex justify-end gap-0.5"><button onclick="editRecord('${col}',${id})" class="btn btn-icon" title="Düzenle" aria-label="${label} düzenle">${ic('pencil')}</button><button onclick="delItem('${col}',${id})" class="btn btn-icon danger" title="Sil" aria-label="${label} sil">${ic('trash')}</button></div>`;
+const rowActions=(col,id,label)=>`<div class="row-act flex justify-end gap-0.5"><button onclick="editRecord('${col}',${id})" class="btn btn-icon" title="Düzenle" aria-label="${label} düzenle">${ic('pencil')}</button><button onclick="delItem('${col}',${id})" class="btn btn-icon danger" title="Sil" aria-label="${label} sil">${ic('trash')}</button></div>`;
 // Kısa bildirim (alert yerine): ekranı kilitlemez, ekran okuyucuya duyurulur.
 function toast(msg,tone='ok'){let w=$('toasts');if(!w){w=document.createElement('div');w.id='toasts';w.setAttribute('role','status');w.setAttribute('aria-live','polite');document.body.appendChild(w)}const t=document.createElement('div');t.className='toast toast-'+tone;t.textContent=msg;w.appendChild(t);setTimeout(()=>{t.classList.add('out');setTimeout(()=>t.remove(),300)},tone==='error'?5000:3000)}
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -54,7 +54,7 @@ function buildNav(){
 function openSheet(id){$(id).classList.add('open');const f=$(id).querySelector('button');if(f)f.focus()}
 function closeSheet(id){$(id).classList.remove('open')}
 function quick(id){closeSheet('quickSheet');openModal(id)}
-function setTheme(t){try{t==='auto'?localStorage.removeItem('LOJIX_THEME'):localStorage.setItem('LOJIX_THEME',t)}catch(e){}if(t==='auto')delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=t}
+function setTheme(t){try{t==='dark'?localStorage.removeItem('LOJIX_THEME'):localStorage.setItem('LOJIX_THEME',t)}catch(e){}if(t==='dark')delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=t}
 // Telefonda tablolar karta döner: her hücreye başlıktaki etiketi yaz.
 function labelCells(){document.querySelectorAll('table.rtable').forEach(tb=>{const hs=[...tb.querySelectorAll('thead th')].map(th=>th.textContent.trim());tb.querySelectorAll('tbody tr').forEach(tr=>[...tr.children].forEach((td,i)=>{if(td.hasAttribute('colspan'))return;td.dataset.label=hs[i]||'';if(td.childNodes.length>1||(td.firstChild&&td.firstChild.nodeType===3)){const w=document.createElement('div');w.append(...td.childNodes);td.append(w)}}))})}
 function switchTab(id){
@@ -118,13 +118,16 @@ function renderDashboard(){
   $('hello-title').textContent=h<12?'Günaydın':h<18?'İyi günler':'İyi akşamlar';
   $('hello-sum').innerHTML=!state.vehicles.length?'Başlamak için ilk aracınızı ekleyin.':c.n?`Bu ay <b class="text-slate-800">${c.n} sefer</b>, ${fmtTL(c.gross)} navlun, net <b class="${netCls(c.net)}">${fmtTL(c.net)}</b>. ${al?`<b class="text-amber-700">${al} uyarı</b> var.`:'Uyarı yok.'}`:`Bu ay henüz sefer yok. ${al?`<b class="text-amber-700">${al} uyarı</b> var.`:''}`}
  const kpi=(l,v,s,c='',x='')=>`<div class="card p-4 md:p-5 ${x}"><div class="kpi-label">${l}</div><div class="kpi-value ${c}">${v}</div><div class="kpi-sub">${s}</div></div>`;
- $('kpis').innerHTML=kpi('Net filo kârı',fmtTL(a.net),`Kâr marjı %${mg}, ${a.n} sefer`,'','kpi-hero col-span-2')+kpi('Navlun',fmtTL(a.gross),`Açık alacak ${fmtTL(openTotal())}`)+kpi('Yakıt',fmtTL(a.fuel),a.avg>0?`Çekici ${fmtNum(a.avg)} lt/100 km`:'Tüketim için gösterge km girin')+kpi('Diğer giderler',fmtTL(a.exp),`Komisyon ve kesinti ${fmtTL(a.cut)}`,'','hidden lg:block');
+ const mn=monthNets(),mx=Math.max(...mn.map(Math.abs),1);
+ const spark=`<svg class="spark" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true"><polyline points="${mn.map((v,i)=>`${i*20},${(15-(v/mx)*12).toFixed(1)}`).join(' ')}"/></svg>`;
+ const heroSub=`Kâr marjı %${mg} · ${a.n} sefer · çizgi: son 6 ayın neti`+spark;
+ $('kpis').innerHTML=kpi('Net filo kârı',fmtTL(a.net),heroSub,'','kpi-hero col-span-2')+kpi('Navlun',fmtTL(a.gross),`Açık alacak ${fmtTL(openTotal())}`)+kpi('Yakıt',fmtTL(a.fuel),a.avg>0?`Çekici ${fmtNum(a.avg)} lt/100 km`:'Tüketim için gösterge km girin')+kpi('Diğer giderler',fmtTL(a.exp),`Komisyon ve kesinti ${fmtTL(a.cut)}`,'','hidden lg:block');
  if($('dash-title'))$('dash-title').textContent=`Araç kârlılığı (${state.vehicles.length} araç)`;
  $('dash-tbody').innerHTML=(state.vehicles.length?'':'<tr><td colspan="6" class="td text-center py-8">Henüz araç yok. <button class="text-blue-600 font-semibold" onclick="openVehicleModal()">İlk aracı ekleyin</button></td></tr>')+state.vehicles.map(v=>{const m=calc(t.filter(x=>x.vehicleId===v.id),f.filter(x=>x.vehicleId===v.id),e.filter(x=>x.vehicleId===v.id));
   return`<tr><td class="td"><div>${plate(v.plate)}<div class="text-xs text-slate-400 mt-1">${esc(v.model)}</div></div></td><td class="td">${esc(v.driver)}</td><td class="td text-right text-emerald-700 font-semibold">${fmtTL(m.gross)}</td><td class="td text-right text-rose-600 font-semibold">${fmtTL(m.gross-m.net)}</td><td class="td text-center">${m.avg>0?fmtNum(m.avg):'-'}</td><td class="td text-right font-extrabold ${netCls(m.net)}">${fmtTL(m.net)}</td></tr>`}).join('');
  const row=(c,l,v)=>`<div class="flex justify-between py-2.5 border-b border-slate-200 last:border-0"><span class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full ${c}"></span>${l}</span><b>${fmtTL(v)}</b></div>`;
  $('breakdown').innerHTML=row('bg-amber-500','Çekici mazotu',a.cekiciC)+row('bg-sky-500','Frigo dorse mazotu',a.frigoC)+row('bg-indigo-500','AdBlue',a.adblue)+row('bg-purple-500','Şoför maaş ve harcırah',a.pay)+row('bg-rose-500','Bakım, servis ve diğer',a.maint)+row('bg-slate-500','Komisyon ve kesintiler',a.cut);
- const chart=trendChart();if($('finance-chart'))$('finance-chart').innerHTML=chart;if($('expense-chart'))$('expense-chart').innerHTML=chart;
+ const chart=trendChart();renderGauges(a);if($('finance-chart'))$('finance-chart').innerHTML=chart;if($('expense-chart'))$('expense-chart').innerHTML=chart;
 }
 function renderTrips(){
  let a=D().t;const v=$('tF-v').value,d=$('tF-d').value;
@@ -173,7 +176,7 @@ function renderSettings(){
  const cc=$('intermediaryCompanyRows');if(cc)cc.innerHTML=state.intermediaryCompanies.map(c=>`<div class="border rounded-lg p-3 space-y-2"><div class="grid grid-cols-1 sm:grid-cols-[1fr_140px_auto] items-end gap-2"><div><label class="lbl" for="ic-name-${esc(c.id)}">Aracı şirket adı</label><input id="ic-name-${esc(c.id)}" class="inp" value="${esc(c.name)}" maxlength="120"></div><div><label class="lbl" for="ic-rate-${esc(c.id)}">Navlun kesintisi (%)</label><input id="ic-rate-${esc(c.id)}" class="inp" type="number" min="0" max="100" step="0.1" value="${Number(c.rate)||0}"></div><div class="flex gap-2"><button class="btn btn-primary" onclick="saveIntermediaryCompany('${esc(c.id)}')">Kaydet</button><button class="btn btn-danger" onclick="deleteIntermediaryCompany('${esc(c.id)}')">Sil</button></div></div><p class="text-xs text-slate-500">Yeni seferlerde bu oran otomatik uygulanır. Önceden kaydedilmiş seferlerin oranı geçmiş kayıt olarak korunur.</p></div>`).join('')||'<p class="text-sm text-slate-500">Henüz aracı şirket eklenmedi.</p>';
  const ss=$('settings-summary');if(ss){const total=state.vehicles.length,drivers=new Set(state.vehicles.map(v=>(v.driver||'').trim()).filter(Boolean)).size,companies=state.intermediaryCompanies.length,records=state.trips.length+state.fuels.length+state.expenses.length+state.payments.length;ss.innerHTML=[['Araç',total,'Filo tanımları'],['Şoför',drivers,'Tanımlı sürücüler'],['Aracı şirket',companies,'Komisyon kartları'],['Kayıt',records,'Sefer, yakıt, gider ve tahsilat']].map(([l,v,sub])=>`<div class="lx-mini-stat"><div class="lx-mini-stat-label">${l}</div><div class="lx-mini-stat-value">${fmtNum(v,0)}</div><div class="lx-mini-stat-sub">${sub}</div></div>`).join('')}
 }
-function renderAll(){fillMonths();populateSelects();renderDashboard();renderTrips();renderFuel();renderExpenses();renderVehicles();renderDrivers();renderSettings();renderAlerts();renderCari();renderMaint();labelCells();const ts=$('themeSelect');if(ts)ts.value=document.documentElement.dataset.theme||'auto'}
+function renderAll(){fillMonths();populateSelects();renderDashboard();renderTrips();renderFuel();renderExpenses();renderVehicles();renderDrivers();renderSettings();renderAlerts();renderCari();renderMaint();labelCells();const ts=$('themeSelect');if(ts)ts.value=document.documentElement.dataset.theme||'dark'}
 
 /* ---------- Cari ---------- */
 let _cari=[];
@@ -203,3 +206,25 @@ function saveClient(e){e.preventDefault();const n=val('clientName').trim();if(!n
 // Alacak kartı = vadeli sefer: sefer formu müşteri adıyla açılır.
 function createReceivable(encodedName){openModal('tripModal');if(!$('tripModal').classList.contains('flex'))return;$('tripClient').value=decodeURIComponent(encodedName);$('tripPaid').value='Vadeli / Bekliyor';$('tripRoute').focus()}
 const tripLabel=t=>`${t.date||''} • ${t.route||'sefer'}${t.invoiceNo?' • '+t.invoiceNo:''}`;
+// Son 6 ayın net kârı (eski → yeni), çizgi ve aylık değişim için
+function monthNets(){const out=[];let [y,m]=today().slice(0,7).split('-').map(Number);for(let i=0;i<6;i++){const k=`${y}-${String(m).padStart(2,'0')}`,f=a=>a.filter(x=>(x.date||'').startsWith(k));out.unshift(calc(f(state.trips),f(state.fuels),f(state.expenses)).net);if(--m===0){m=12;y--}}return out}
+// Yarım daire ibreli gösterge. zones: [[başlangıç, bitiş, renk]]
+function gauge({label,value,min,max,zones,text,unit,note}){
+ const C=100,R=78,ang=v=>Math.PI*(1-(Math.min(max,Math.max(min,v))-min)/(max-min)),pt=(v,r=R)=>[C+r*Math.cos(ang(v)),95-r*Math.sin(ang(v))];
+ const arc=(a,b,col)=>{const[x1,y1]=pt(a),[x2,y2]=pt(b);return `<path class="g-arc" d="M${x1.toFixed(1)} ${y1.toFixed(1)} A${R} ${R} 0 0 1 ${x2.toFixed(1)} ${y2.toFixed(1)}" stroke="${col}" style="color:${col}" stroke-width="12" fill="none" stroke-linecap="butt"/>`};
+ const has=value!==null&&isFinite(value),[nx,ny]=has?pt(value,R-30):[C,95];
+ return `<div class="card gauge" role="img" aria-label="${esc(label)}: ${has?esc(text):'veri yok'}"><svg viewBox="0 0 200 148">${arc(min,max,'var(--line)')}${zones.map(z=>arc(z[0],z[1],z[2])).join('')}
+  ${has?`<line class="g-needle" x1="${C}" y1="95" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}"/>`:''}<circle class="g-hub" cx="${C}" cy="95" r="5"/>
+  <text class="g-val" x="${C}" y="130" text-anchor="middle">${has?esc(text):'—'}</text><text class="g-unit" x="${C}" y="146" text-anchor="middle">${esc(unit)}</text>
+  <text class="g-tick" x="22" y="110" text-anchor="middle">${min}</text><text class="g-tick" x="178" y="110" text-anchor="middle">${max}</text></svg><div class="g-label">${esc(label)}</div>${note?`<div class="g-note">${note}</div>`:''}</div>`;
+}
+function renderGauges(a){
+ const el=$('gauges');if(!el)return;
+ const P='var(--pos)',W='var(--warn)',N='var(--neg)',margin=a.rev>0?a.net/a.rev*100:null;
+ const L=cariData(),netAll=state.trips.reduce((s,t)=>s+Math.max(0,(Number(t.price)||0)-tCut(t)),0),open=L.reduce((s,c)=>s+Math.max(c.bal,0),0),coll=netAll>0?(1-open/netAll)*100:null;
+ const rpk=a.km>0?a.gross/a.km:null,cpk=a.km>0?(a.fuel+a.exp)/a.km:null,cmax=rpk?Math.max(5,Math.ceil(rpk/5)*5):10;
+ el.innerHTML=gauge({label:'Kâr marjı',value:margin,min:0,max:80,zones:[[0,15,N],[15,30,W],[30,80,P]],text:margin!==null?'%'+fmtNum(margin,0):'',unit:'net / navlun'})
+  +gauge({label:'Çekici tüketimi',value:a.avg>0?a.avg:null,min:20,max:45,zones:[[20,32,P],[32,37,W],[37,45,N]],text:a.avg>0?fmtNum(a.avg):'',unit:'lt / 100 km',note:a.avg>0?'':'Gösterge km\'li mazot girin'})
+  +gauge({label:'Tahsilat oranı',value:coll,min:0,max:100,zones:[[0,60,N],[60,85,W],[85,100,P]],text:coll!==null?'%'+fmtNum(coll,0):'',unit:'tahsil edilen',note:open>0?`Açık ${fmtTL(open)}`:''})
+  +gauge({label:'Km başı maliyet',value:cpk,min:0,max:cmax,zones:[[0,cmax*.6,P],[cmax*.6,cmax*.85,W],[cmax*.85,cmax,N]],text:cpk!==null?fmtNum(cpk,1):'',unit:'₺ / km',note:rpk?`Navlun ${fmtNum(rpk,1)} ₺/km`:''});
+}

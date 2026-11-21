@@ -10,12 +10,21 @@ service cloud.firestore {
       ];
     }
 
+    // Yazabilenler (kalan ekip yalnızca görür). Uygulamadaki LOJIX_WRITERS ile aynı tutun.
+    function writer() {
+      return request.auth != null && request.auth.uid in [
+        's8DnbccECcQEN8i48fqO5r68yky1',  // azzantalya@gmail.com
+        'yBvvM9DhzXaOzq77zh64mwIdF3l2'   // yasin07.6666@gmail.com
+      ];
+    }
+
     // Ortak filo: her kayıt ayrı belge, fleets/lojix/{tür}/{kayıtId} = { data, updatedAt, updatedBy }
     match /fleets/{fleet}/{kind}/{docId} {
-      function ok() { return member() && fleet == 'lojix'
+      function ok() { return fleet == 'lojix'
         && kind in ['vehicles', 'clients', 'trips', 'fuels', 'expenses', 'payments', 'companies']; }
-      allow read, delete: if ok();
-      allow create, update: if ok()
+      allow read: if member() && ok();
+      allow delete: if writer() && ok();
+      allow create, update: if writer() && ok()
         && request.resource.data.keys().hasOnly(['data', 'updatedAt', 'updatedBy'])
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.updatedAt == request.time

@@ -7,7 +7,8 @@ const seed = JSON.parse(fs.readFileSync(path.join(__dirname, 'seed.json'), 'utf8
 const dir = path.join(__dirname, '..', 'public');
 const PROJECT = 'lojix-pro', EMU = 'http://localhost', PASS = 'test1234';
 // Kurallardaki gerçek ekip UID'leri + üye olmayan biri
-const USERS = { a: ['s8DnbccECcQEN8i48fqO5r68yky1', 'a@test.com'], b: ['kSPDmR5caBhnLXJQTJSVaTiuBcj2', 'b@test.com'], x: ['yabanciUid000000000000000000', 'x@test.com'] };
+// a ve b yazabilir; r ekipte ama yalnızca görür; x ekip dışı
+const USERS = { a: ['s8DnbccECcQEN8i48fqO5r68yky1', 'a@test.com'], b: ['yBvvM9DhzXaOzq77zh64mwIdF3l2', 'b@test.com'], r: ['kSPDmR5caBhnLXJQTJSVaTiuBcj2', 'r@test.com'], x: ['yabanciUid000000000000000000', 'x@test.com'] };
 let fails = 0;
 const check = (ok, msg) => { console.log((ok ? '  ✔ ' : '  ✘ ') + msg); if (!ok) fails++; };
 const type = f => ({ js: 'text/javascript', css: 'text/css', png: 'image/png', webmanifest: 'application/manifest+json' })[f.split('.').pop()] || 'text/html';
@@ -116,7 +117,23 @@ async function run() {
     check(await until(X, async () => (await status(X)).includes('erişim izni yok')), 'Yabancı hesaba izin verilmedi: ' + await status(X));
     check((await st(X)).trips.length === 0, 'Yabancı hesap hiçbir kayıt görmedi');
 
-    for (const p of [A, B, X]) check(!p.errs.length, 'Sayfa hatası yok ' + p.errs.join(' | '));
+    console.log('6) Yalnızca görebilen hesap');
+    const Rp = await phone(b, 'R', null);
+    check(await signIn(Rp, 'r'), 'Görüntüleme hesabı girişi: ' + await status(Rp));
+    check((await st(Rp)).trips.length === (await st(A)).trips.length, 'Görüntüleme hesabı tüm filoyu görüyor');
+    check(await Rp.evaluate(() => document.body.classList.contains('ro') && getComputedStyle(document.getElementById('fab')).display === 'none'), 'Ekleme düğmeleri gizli');
+    await Rp.evaluate(() => openModal('tripModal'));
+    check(!(await Rp.evaluate(() => document.getElementById('tripModal').classList.contains('flex'))) && (await Rp.textContent('#toasts')).includes('yalnızca görüntüleyebilir'), 'Form açılmadı, nedeni bildirildi');
+    const before6 = (await st(A)).trips.length, tid = (await st(Rp)).trips[0].id;
+    await Rp.evaluate(id => delItem('trips', id), tid);
+    check((await st(Rp)).trips.length === before6, 'Silme engellendi');
+    // Kural düzeyi: uygulamayı atlayıp doğrudan Firestore'a yazma denemesi reddedilmeli
+    const denied = await Rp.evaluate(async () => { try { await firebase.firestore().collection('fleets').doc('lojix').collection('expenses').doc('999').set({ data: { id: 999, amount: 1 }, updatedAt: firebase.firestore.FieldValue.serverTimestamp(), updatedBy: firebase.auth().currentUser.uid }); return 'yazdı'; } catch (e) { return e.code; } });
+    check(denied === 'permission-denied', 'Bulut kuralı doğrudan yazmayı reddetti: ' + denied);
+    await addExpense(A, 321, 'A yeni gider');
+    check(await until(Rp, async () => (await st(Rp)).expenses.some(e => e.note === 'A yeni gider')), 'Yazabilen hesabın kaydı görüntüleme hesabına canlı geldi');
+
+    for (const p of [A, B, X, Rp]) check(!p.errs.length, 'Sayfa hatası yok ' + p.errs.join(' | '));
   } catch (e) { console.error(e); fails++; }
   await b.close();
   console.log(fails ? `\n${fails} kontrol BAŞARISIZ` : '\nTüm kontroller geçti');
