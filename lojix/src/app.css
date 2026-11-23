@@ -393,7 +393,7 @@ body.ro [data-tab=trash], body.limited [data-tab=trash], body.ro [data-writer] {
 /* Panelim yalnız sınırlı rollerde; onlarda alt menü Daha yerine doğrudan Gider ve Ayarlar */
 body:not(.limited) [data-tab=home], body:not(.limited) #mnav .mob-lim, body.limited #mnav [data-tab=more] { display: none !important; }
 /* Panelim'de büyük hızlı işlem düğmeleri var: + düğmesi gerekmez */
-body[data-tab=home] #fab { display: none !important; }
+body[data-tab=home] #fab, body[data-tab=users] #fab { display: none !important; }
 /* Kullanıcılar sekmesi yalnız sahipte (Yasin) ve kullanıcı yöneticisinde (Aziz) */
 body:not(.manager) [data-manager], body:not(.manager) [data-tab=users] { display: none !important; }
 s { color: var(--faint); }
