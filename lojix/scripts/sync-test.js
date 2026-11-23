@@ -155,6 +155,9 @@ async function run() {
     const fsU = (who, id, doc) => who.evaluate(async ([id, doc]) => { const r = firebase.firestore().collection('fleets').doc('lojix').collection('users').doc(id); try { doc ? await r.set(doc) : await r.get(); return 'ok'; } catch (e) { return e.code; } }, [id, doc]);
     check(await fsU(A, 'yasin07.6666@gmail.com', { role: 'viewer' }) === 'permission-denied', 'Kural: Aziz sahibin belgesine yazamaz');
     check(await fsU(A, USERS.a[1], { role: 'admin', name: 'x' }) === 'permission-denied', 'Kural: Aziz kendi belgesini değiştiremez');
+    check(await A.evaluate(() => document.querySelector('#users-list > div').textContent.includes('(siz)')), 'Aziz en üstte kendini yönetici olarak görüyor');
+    for (const r of ['partner', 'driver', 'admin']) check(await fsU(A, r + '@yeni.test', { role: r, name: r }) === 'ok', 'Kural: Aziz ' + r + ' ekleyebilir');
+    for (const r of ['partner', 'driver', 'admin']) await A.evaluate(e => firebase.firestore().collection('fleets').doc('lojix').collection('users').doc(e).delete(), r + '@yeni.test');
     check(await fsU(A, 'yeni@test.com', { role: 'viewer', name: 'Yeni' }) === 'ok', 'Kural: Aziz yeni kullanıcı ekleyebilir');
     await A.evaluate(e => removeUser(e), 'yeni@test.com');
     check(await until(A, async () => !(await A.textContent('#users-list')).includes('yeni@test.com')), 'Aziz kullanıcının erişimini kaldırabildi');
