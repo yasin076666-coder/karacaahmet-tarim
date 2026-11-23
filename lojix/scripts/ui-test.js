@@ -191,10 +191,13 @@ async function run() {
     check(await visible(I, 'expenseModal') && await I.inputValue('#expAmount') === '5000' && await I.inputValue('#expVehicle') === 'V1', 'Dikte bitince susunca gider formu kendiliğinden doldu');
     await I.evaluate(() => closeModal('expenseModal')); await I.evaluate(() => asstListen());
     check(await I.evaluate(() => window.__sr.made === 1 && document.activeElement.id === 'asst-input'), 'Sonraki basışta beklemeden doğrudan klavye diktesi');
+    const T = await vp({ ...devices['iPhone 13'] }, 'deaf');
+    await T.evaluate(() => localStorage.setItem('LOJIX_SR_OK', '1')); await T.evaluate(() => asstListen()); await T.waitForTimeout(1300);
+    check((await T.textContent('#asst-out')).includes('bu sefer ses alamadı') && await T.evaluate(() => !localStorage.getItem('LOJIX_DICTATE_UNTIL')), 'Daha önce çalışmış telefonda tek boş dinleme geçici sayıldı, dikte tercihi kaydedilmedi');
     const W = await vp({ viewport: { width: 1280, height: 900 } }, 'nofinal');
     await W.evaluate(() => asstListen()); await W.waitForTimeout(3300);
     check(await W.evaluate(() => window.__sr.cont[0] === true) && await visible(W, 'expenseModal') && await W.inputValue('#expAmount') === '750', 'Masaüstü: "bitti" işareti olmadan susunca gider formu doldu');
-    for (const p of [I, W]) check(!p.errs.length, 'Ses testinde sayfa hatası yok ' + p.errs.join(' | '));
+    for (const p of [I, W, T]) check(!p.errs.length, 'Ses testinde sayfa hatası yok ' + p.errs.join(' | '));
 
     for (const p of [E, P]) check(!p.errs.length, 'Sayfa hatası yok ' + p.errs.join(' | '));
   } catch (e) { console.error(e); fails++; }

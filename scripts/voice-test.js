@@ -15,10 +15,13 @@ const srv = http.createServer((q, res) => {
 // mode 'nofinal': ara sonuçlar gelir, 'bitti' işareti hiç gelmez
 const mockSR = mode => {
   window.ASST_NO_AUDIO_MS = 700;
+  window.__spoken = [];
+  try { Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: { speak: u => window.__spoken.push(u.text), cancel() {}, getVoices: () => [] } }); window.SpeechSynthesisUtterance = function (t) { this.text = t; }; } catch (e) {}
   window.__sr = { made: 0, continuous: [] };
   window.SpeechRecognition = function () {
     window.__sr.made++; const r = this;
     r.start = () => { window.__sr.continuous.push(r.continuous); setTimeout(() => r.onaudiostart && r.onaudiostart(), 50);
+      if (mode === 'question') setTimeout(() => r.onresult({ resultIndex: 0, results: [Object.assign([{ transcript: 'kasada ne kadar var' }], { isFinal: false })] }), 150);
       if (mode === 'nofinal') setTimeout(() => r.onresult({ resultIndex: 0, results: [Object.assign([{ transcript: '300 lira yemek' }], { isFinal: false })] }), 150); };
     r.stop = () => setTimeout(() => r.onend && r.onend(), 10);
   };
@@ -65,7 +68,19 @@ async function run() {
     check(await expenseOpen(A) && await A.inputValue('#expense-amount') === '300', 'Ara sonuçtan gider formu 300 ile açıldı');
     check(!(await A.evaluate(() => localStorage.getItem('asst_dictate_until'))), 'Çalışan tanımada klavye diktesi tercihi kaydedilmedi');
 
-    for (const p of [I, A]) check(!p.errs.length, 'Sayfa hatası yok ' + p.errs.join(' | '));
+    check(await A.evaluate(() => window.__spoken.length) === 0, 'Form dolduran sesli komut sesli okunmadı (mikrofonu meşgul etmesin)');
+    await A.evaluate(() => closeModal('expense-modal'));
+
+    console.log('3) Daha önce çalışmış telefonda tek boş dinleme geçicidir; sorular sesli okunur');
+    const T = await page(b, { ...devices['iPhone 13'] }, 'deaf');
+    await T.evaluate(() => localStorage.setItem('asst_sr_ok', '1'));
+    await T.click('#asst-mic'); await T.waitForTimeout(1300);
+    check((await out(T)).includes('bu sefer ses alamadı') && await T.evaluate(() => !localStorage.getItem('asst_dictate_until')), 'Geçici boş dinlemede dikte tercihi kaydedilmedi, tekrar basması söylendi');
+    const Q = await page(b, { viewport: { width: 1280, height: 900 } }, 'question');
+    await Q.click('#asst-mic'); await Q.waitForTimeout(3300);
+    check(await Q.evaluate(() => window.__spoken.length) === 1 && (await out(Q)).toLowerCase().includes('kasa'), 'Soru cevabı sesli okundu');
+
+    for (const p of [I, A, T, Q]) check(!p.errs.length, 'Sayfa hatası yok ' + p.errs.join(' | '));
   } catch (e) { console.error(e); fails++; }
   await b.close(); srv.close();
   console.log(fails ? `\n${fails} kontrol BAŞARISIZ` : '\nTüm kontroller geçti');

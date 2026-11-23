@@ -12,7 +12,7 @@ const ASST_CATS = [
   ['Market', /market|malzeme|poset|naylon|bakkal/],
   ['Kira', /kira/],
 ];
-const ASST_FILLER = new Set(['ve', 'de', 'da', 'ile', 'için', 'lira', 'tl', '@', 'sattım', 'sattık', 'sattı', 'satış', 'sat', 'verdim', 'verdik', 'aldım', 'aldık', 'alış', 'ekle', 'kaydet', 'yaz', 'tane', 'bir', 'olarak', 'toplam', 'her', 'birim', 'fiyat', 'fiyatı', 'fiyatına', 'fiyatla', 'fiyatından']);
+const ASST_FILLER = new Set(['fatura', 'faturası', 'faturasi', 'faturayla', 'fiş', 'fişi', 'irsaliye', 'irsaliyesi', 'kayıt', 'kaydı', 'kaydet', 'alış', 'satış', 've', 'de', 'da', 'ile', 'için', 'lira', 'tl', '@', 'sattım', 'sattık', 'sattı', 'satış', 'sat', 'verdim', 'verdik', 'aldım', 'aldık', 'alış', 'ekle', 'kaydet', 'yaz', 'tane', 'bir', 'olarak', 'toplam', 'her', 'birim', 'fiyat', 'fiyatı', 'fiyatına', 'fiyatla', 'fiyatından']);
 const asstFold = s => String(s).toLocaleLowerCase('tr-TR').replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c').replace(/â/g, 'a').replace(/î/g, 'i').replace(/û/g, 'u');
 const asstTitle = s => s.split(' ').filter(Boolean).map(w => w[0].toLocaleUpperCase('tr-TR') + w.slice(1)).join(' ');
 const asstEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -105,7 +105,9 @@ function parseCommand(text, ctx) {
   const items = []; let cur = { nums: [], unit: '', words: [] };
   const close = () => {
     if (cur.words.length && cur.nums.length) {
-      const prodRaw = cur.words.join(' '), known = ctx.products.find(p => asstFold(p) === asstFold(prodRaw));
+      const prodRaw = cur.words.join(' '), fr = asstFold(prodRaw);
+      // tam eşleşme yoksa sondaki kelimelerle eşleşen en uzun bilinen ürün ("faturası kıvırcık" → Kıvırcık)
+      const known = ctx.products.find(p => asstFold(p) === fr) || ctx.products.filter(p => fr.endsWith(' ' + asstFold(p))).sort((a, b) => b.length - a.length)[0];
       items.push({ prod: known || asstTitle(prodRaw), qty: cur.nums[0], unit: cur.unit, price: cur.nums[1] || 0 });
     }
     cur = { nums: [], unit: '', words: [] };
@@ -296,6 +298,10 @@ const ASST_SILENCE_MS = 2500, ASST_MAX_MS = 30000, ASST_NO_AUDIO_MS = (typeof wi
 // Mikrofon açılıp yazı gelmezse (ör. iPhone'da ana ekrandan açılan uygulama) klavye diktesine geçilir ve bu tercih 14 gün hatırlanır.
 const ASST_DICTATE_KEY = 'asst_dictate_until', ASST_DICTATE_DAYS = 14;
 let asstDictating = false, asstDictT = 0;
+// Cevap yalnız sorularda sesli okunur (form onayı ekranda görünür). iPhone'da okuma, hemen ardından basılan mikrofonu sağır bırakabiliyor.
+function asstIsQuestion(text) { try { return parseCommand(text, asstCtx()).type === 'report'; } catch (e) { return false; } }
+// Bu telefonda doğrudan dinleme en az bir kez çalıştıysa ara sıra yaşanan boş dinleme geçicidir: dikte tercihi kaydedilmez.
+const asstSrWorked = () => { try { return localStorage.getItem('asst_sr_ok') === '1'; } catch (e) { return false; } };
 function asstDictateRemembered() { try { return +(localStorage.getItem(ASST_DICTATE_KEY) || 0) > Date.now(); } catch (e) { return false; } }
 function asstRememberDictate(on) { try { on ? localStorage.setItem(ASST_DICTATE_KEY, String(Date.now() + ASST_DICTATE_DAYS * 864e5)) : localStorage.removeItem(ASST_DICTATE_KEY); } catch (e) {} }
 // Klavye diktesi: kutu açılır, kişi klavyedeki 🎤 ile söyler; susunca kendiliğinden gönderilir.
@@ -311,7 +317,7 @@ if (typeof document !== 'undefined') document.addEventListener('input', e => {
   asstDictT = setTimeout(() => {
     const inp = document.getElementById('asst-input');
     if (!asstDictating || !inp.value.trim()) return;
-    asstDictating = false; asstVoiceTurn = true;
+    asstDictating = false; asstVoiceTurn = asstIsQuestion(inp.value);
     try { runAssistant(); } finally { asstVoiceTurn = false; }
   }, ASST_SILENCE_MS);
 });
@@ -340,11 +346,12 @@ function asstListen() {
     if (failed) return;
     if (!text) { if (!heard) asstSay('Ses duyulmadı. Mikrofona basıp konuşun, bitirince susun.'); return; }
     inp.value = asstBest(text, alts);
-    asstVoiceTurn = true;
+    asstVoiceTurn = asstIsQuestion(inp.value);
     try { runAssistant(); } finally { asstVoiceTurn = false; }
   };
   r.onresult = e => {
     heard = true; clearTimeout(noAudioT);
+    try { localStorage.setItem('asst_sr_ok', '1'); } catch (err) {}
     for (let i = e.resultIndex || 0; i < e.results.length; i++) {
       const res = e.results[i];
       if (res.isFinal) { finalText = asstMergeText(finalText, res[0].transcript); alts = [...res].map(a => a.transcript).filter(Boolean); }
@@ -370,7 +377,8 @@ function asstListen() {
       if (heard) return;
       failed = true; try { r.stop(); } catch (e) {}
       // Mikrofon açıldı ama yazı gelmedi: tanıma bu ekranda çalışmıyor → klavye diktesi, tercih hatırlanır
-      if (audio) { asstRememberDictate(true); asstDictate('Mikrofon açıldı ama söylediğiniz yazıya dönmedi; bu telefonda klavye diktesi kullanılacak.'); }
+      if (audio && asstSrWorked()) asstSay('Mikrofon bu sefer ses alamadı. Bir saniye bekleyip mikrofona tekrar basın; olmazsa kutuya dokunup klavyedeki 🎤 ile söyleyin.');
+      else if (audio) { asstRememberDictate(true); asstDictate('Mikrofon açıldı ama söylediğiniz yazıya dönmedi; bu telefonda klavye diktesi kullanılacak.'); }
       else asstSay(ASST_NO_AUDIO_HELP);
     }, ASST_NO_AUDIO_MS);
     maxT = setTimeout(() => r.stop(), ASST_MAX_MS);

@@ -372,6 +372,8 @@ function lxMergeText(acc, next) {
   if (fa.includes(fn)) return acc;
   return acc + ' ' + next;
 }
+// Bu telefonda doğrudan dinleme en az bir kez çalıştıysa ara sıra yaşanan boş dinleme geçicidir: dikte tercihi kaydedilmez.
+const lxSrWorked = () => { try { return localStorage.getItem('LOJIX_SR_OK') === '1'; } catch (e) { return false; } };
 const lxDictateRemembered = () => { try { return +(localStorage.getItem(LX_DICTATE_KEY) || 0) > Date.now(); } catch (e) { return false; } };
 function lxRememberDictate(on) { try { on ? localStorage.setItem(LX_DICTATE_KEY, String(Date.now() + LX_DICTATE_DAYS * 864e5)) : localStorage.removeItem(LX_DICTATE_KEY); } catch (e) {} }
 // Klavye diktesi: kutu açılır, kişi klavyedeki 🎤 ile söyler; susunca kendiliğinden gönderilir.
@@ -407,6 +409,7 @@ function asstListen() {
   r.onaudiostart = () => { audio = true; };
   r.onresult = e => {
     heard = true; clearTimeout(noAudioT);
+    try { localStorage.setItem('LOJIX_SR_OK', '1'); } catch (err) {}
     for (let i = e.resultIndex || 0; i < e.results.length; i++) {
       const res = e.results[i];
       if (res.isFinal) { finalText = lxMergeText(finalText, res[0].transcript); alts = [...res].map(a => a.transcript); }
@@ -431,7 +434,8 @@ function asstListen() {
     noAudioT = setTimeout(() => {
       if (heard) return;
       failed = true; try { r.stop(); } catch (e) {}
-      if (audio) { lxRememberDictate(true); lxDictate('Mikrofon açıldı ama söylediğiniz yazıya dönmedi; bu telefonda klavye diktesi kullanılacak.'); }
+      if (audio && lxSrWorked()) asstSay('Mikrofon bu sefer ses alamadı. Bir saniye bekleyip mikrofona tekrar basın; olmazsa kutuya dokunup klavyedeki 🎤 ile söyleyin.');
+      else if (audio) { lxRememberDictate(true); lxDictate('Mikrofon açıldı ama söylediğiniz yazıya dönmedi; bu telefonda klavye diktesi kullanılacak.'); }
       else asstSay('Mikrofondan ses gelmiyor. iPhone’da Ayarlar → Genel → Klavye → <b>Dikte</b> açık olmalı ve tarayıcıya mikrofon izni verilmiş olmalı.');
     }, LX_NO_AUDIO_MS);
     maxT = setTimeout(() => r.stop(), LX_MAX_MS);
