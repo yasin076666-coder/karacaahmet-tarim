@@ -394,8 +394,8 @@ body.ro [data-tab=trash], body.limited [data-tab=trash], body.ro [data-writer] {
 body:not(.limited) [data-tab=home], body:not(.limited) #mnav .mob-lim, body.limited #mnav [data-tab=more] { display: none !important; }
 /* Panelim'de büyük hızlı işlem düğmeleri var: + düğmesi gerekmez */
 body[data-tab=home] #fab { display: none !important; }
-/* Kullanıcılar bölümü yalnız sahipte (Yasin) */
-body:not(.owner) [data-owner] { display: none !important; }
+/* Kullanıcılar sekmesi yalnız sahipte (Yasin) ve kullanıcı yöneticisinde (Aziz) */
+body:not(.manager) [data-manager], body:not(.manager) [data-tab=users] { display: none !important; }
 s { color: var(--faint); }
 
 /* Panelim (iş ortağı, şoför) */

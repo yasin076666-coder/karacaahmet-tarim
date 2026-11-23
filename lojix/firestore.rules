@@ -44,10 +44,12 @@ service cloud.firestore {
         && (admin() || (limited() && limitedOk(kind, resource.data) && limitedOk(kind, request.resource.data)));
     }
 
-    // Kullanıcılar: listeyi yalnız sahip görür ve değiştirir; diğer herkes yalnızca kendi belgesini (rolünü) okur.
+    // Kullanıcılar: sahip her şeyi yönetir. Aziz (yönetici kaldıkça) sahibi ve kendisi dışındaki herkesi ekler, değiştirir, kaldırır.
+    // Diğer herkes yalnızca kendi belgesini (rolünü) okur.
+    function manager() { return request.auth != null && request.auth.uid == 's8DnbccECcQEN8i48fqO5r68yky1' && role() == 'admin'; }  // azzantalya@gmail.com
     match /fleets/{fleet}/users/{email} {
-      allow read: if fleet == 'lojix' && (owner() || (request.auth != null && request.auth.token.email == email));
-      allow write: if fleet == 'lojix' && owner();
+      allow read: if fleet == 'lojix' && (owner() || manager() || (request.auth != null && request.auth.token.email == email));
+      allow write: if fleet == 'lojix' && (owner() || (manager() && email != 'yasin07.6666@gmail.com' && email != request.auth.token.email));
     }
 
     // Silme işaretleri: artımlı eşitlemede kapalı telefon da silinen kaydı öğrensin diye (60 gün tutulur).

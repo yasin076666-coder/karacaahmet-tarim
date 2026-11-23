@@ -10,3 +10,5 @@ window.LOJIX_FIREBASE_CONFIG = {
 // Sahip (UID): kullanıcıları ve rolleri yönetir. firestore.rules içindeki owner() ile aynı tutun.
 // Diğer herkesin rolü Ayarlar > Kullanıcılar'dan verilir (fleets/lojix/users).
 window.LOJIX_OWNER = 'yBvvM9DhzXaOzq77zh64mwIdF3l2';
+// Kullanıcıları yönetebilen (sahip hariç) yönetici: Aziz ÖZTÜRK. Kurallardaki manager() ile aynı olmalı.
+window.LOJIX_MANAGERS = ['s8DnbccECcQEN8i48fqO5r68yky1'];

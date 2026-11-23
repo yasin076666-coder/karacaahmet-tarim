@@ -254,10 +254,10 @@
   }
   function setRole(r, info) {
     window.LX_ROLE = r; window.LX_READONLY = r === 'viewer' || r === 'none'; window.LX_USER = info || null;
-    window.LX_OWNER = !!user && user.uid === window.LOJIX_OWNER; window.LX_PARTNER = r === 'partner' ? info : null;
+    window.LX_OWNER = !!user && user.uid === window.LOJIX_OWNER; window.LX_MANAGER = window.LX_OWNER || (!!user && (window.LOJIX_MANAGERS || []).includes(user.uid) && !!info && info.role === 'admin'); window.LX_PARTNER = r === 'partner' ? info : null;
     window.__lxUid = user ? user.uid : ''; window.__lxName = info && info.name || (user && user.email) || '';
     const c = document.body.classList;
-    c.toggle('ro', window.LX_READONLY); c.toggle('limited', r === 'partner' || r === 'driver'); c.toggle('partner', r === 'partner'); c.toggle('driver', r === 'driver'); c.toggle('owner', window.LX_OWNER);
+    c.toggle('ro', window.LX_READONLY); c.toggle('limited', r === 'partner' || r === 'driver'); c.toggle('partner', r === 'partner'); c.toggle('driver', r === 'driver'); c.toggle('owner', window.LX_OWNER); c.toggle('manager', window.LX_MANAGER);
     if (window.onRoleChange) window.onRoleChange(r);
   }
   // Rol: sahip (LOJIX_OWNER) | users/{e-posta} belgesindeki rol: admin → yönetici, viewer, partner, driver | belge yoksa erişim yok

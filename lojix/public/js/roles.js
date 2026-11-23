@@ -45,11 +45,11 @@
   ['saveTrip', 'saveFuel', 'saveExpense'].forEach(n => wrap(n, (orig, args) => { lockForm(); return orig.apply(null, args); }));
   // Asistan: sınırlı kullanıcıya yalnızca kendi navlun, sefer, gider ve yakıt bilgisi; kâr, cari ve filo bilgisi yok
   wrap('asstReport', (orig, args) => limited() && !['freight', 'trips', 'expense', 'fuel'].includes(args[0].metric) ? 'Bu bilgi yalnızca yönetici ekranında. Kendi kayıtlarınız için "bu ay yakıt ne kadar" ya da "bu ay gider ne kadar" diye sorabilirsiniz.' : orig.apply(null, args));
-  wrap('switchTab', (orig, args) => orig.apply(null, limited() && !TABS_OF[R()].includes(args[0]) ? [TABS_OF[R()][0]] : args));
+  wrap('switchTab', (orig, args) => orig.apply(null, limited() && !TABS_OF[R()].includes(args[0]) ? [TABS_OF[R()][0]] : args[0] === 'users' && !window.LX_MANAGER ? ['dashboard'] : args));
   window.onRoleChange = r => {
     const cur = ((document.querySelector('.tab-content.active') || {}).id || '').replace('tab-', '');
     if (TABS_OF[r] && !TABS_OF[r].includes(cur)) switchTab(TABS_OF[r][0]);
-    else if (r !== 'writer' && cur === 'trash') switchTab('dashboard');
+    else if ((r !== 'writer' && cur === 'trash') || (cur === 'users' && !window.LX_MANAGER)) switchTab('dashboard');
     renderAll(); renderUsers();
   };
 
@@ -92,15 +92,16 @@
 
   // ---- Kullanıcılar ve yetkiler: yalnız sahip (Yasin) görür, ekler, rol değiştirir, kaldırır ----
   const users = () => firebase.firestore().collection('fleets').doc('lojix').collection('users');
+  const OWNER_EMAIL = 'yasin07.6666@gmail.com';
   window.userRoleChanged = function () {   // seçilen role göre şirket / araç alanını göster
     const r = val('userRole');
     $('userCompanyBox').hidden = r !== 'partner'; $('userVehicleBox').hidden = r !== 'driver';
   };
   window.renderUsers = async function () {
     const el = $('users-list'); if (!el) return;
-    // Bölüm yalnız sahipte görünür (CSS: data-owner); başkasında hiç çizilmez
-    if (!window.LX_OWNER) { el.innerHTML = ''; $('userForm').hidden = true; return; }
-    const own = true;
+    // Sekme yalnız sahipte ve kullanıcı yöneticisinde görünür (CSS: data-manager); başkasında hiç çizilmez
+    if (!window.LX_MANAGER) { el.innerHTML = ''; $('userForm').hidden = true; return; }
+    const me = ((firebase.auth().currentUser || {}).email || '').toLowerCase(), can = p => window.LX_OWNER || p.email !== me;
     $('userForm').hidden = false; $('users-note').textContent = '';
     fill('userCompany', state.intermediaryCompanies.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join(''));
     if (!$('userCompany').dataset.set) { const m = state.intermediaryCompanies.find(c => /moonlog/i.test(c.name)); if (m) $('userCompany').value = m.id; $('userCompany').dataset.set = 1; }
@@ -108,21 +109,22 @@
     userRoleChanged();
     try {
       const snap = await users().get(), rows = [];
-      snap.forEach(d => rows.push({ email: d.id, ...d.data() }));
+      snap.forEach(d => { if (window.LX_OWNER || d.id !== OWNER_EMAIL) rows.push({ email: d.id, ...d.data() }); });   // Aziz sahibi görmez
       rows.sort((a, b) => Object.keys(ROLE_NAME).indexOf(a.role) - Object.keys(ROLE_NAME).indexOf(b.role) || String(a.name).localeCompare(String(b.name), 'tr'));
       const extra = p => p.role === 'partner' ? ' · ' + esc((state.intermediaryCompanies.find(c => c.id === p.company) || {}).name || p.company || '') : p.role === 'driver' && p.vehicleId ? ' · ' + esc(vehObj(p.vehicleId).plate) : '';
       const sel = p => `<select class="sel !min-h-[34px] !py-1 text-[13px]" aria-label="${esc(p.email)} rolü" onchange="changeUserRole('${esc(p.email)}',this.value)">${Object.entries(ROLE_NAME).map(([k, v]) => `<option value="${k}" ${k === p.role ? 'selected' : ''}>${v}</option>`).join('')}</select>`;
-      el.innerHTML = `<div class="flex items-center gap-3 py-2.5 border-b border-slate-200"><span class="sheet-ic bg-blue-100 text-blue-700">${ic('shield')}</span><div class="min-w-0 flex-1"><b class="font-semibold">Yasin ÖZTÜRK</b><div class="text-[13px] text-slate-500">yasin07.6666@gmail.com · Sahip: kullanıcıları yönetir</div></div></div>`
+      el.innerHTML = (window.LX_OWNER ? `<div class="flex items-center gap-3 py-2.5 border-b border-slate-200"><span class="sheet-ic bg-blue-100 text-blue-700">${ic('shield')}</span><div class="min-w-0 flex-1"><b class="font-semibold">Yasin ÖZTÜRK</b><div class="text-[13px] text-slate-500">yasin07.6666@gmail.com · Sahip: kullanıcıları yönetir</div></div></div>` : '')
         + rows.map(p => `<div class="flex items-center gap-3 py-2.5 border-b border-slate-200 last:border-0 flex-wrap"><span class="sheet-ic ${ROLE_PILL[p.role] || ''}">${ic(p.role === 'driver' ? 'truck' : 'user')}</span><div class="min-w-0 flex-1 basis-[calc(100%-60px)] sm:basis-auto"><b class="font-semibold">${esc(p.name || p.email)}</b><div class="text-[13px] text-slate-500 break-all">${esc(p.email)}${extra(p)}</div></div>
-          <div class="flex items-center gap-1 ml-auto">${own ? sel(p) + `<button class="btn btn-icon" title="Parola bağlantısını yeniden gönder" aria-label="${esc(p.email)} için bağlantıyı yeniden gönder" onclick="resendUserLink('${esc(p.email)}')">${ic('send')}</button><button class="btn btn-icon danger" title="Erişimi kaldır" aria-label="${esc(p.email)} erişimini kaldır" onclick="removeUser('${esc(p.email)}')">${ic('trash')}</button>` : `<span class="pill ${ROLE_PILL[p.role] || ''}">${ROLE_NAME[p.role] || esc(p.role)}</span>`}</div></div>`).join('');
+          <div class="flex items-center gap-1 ml-auto">${can(p) ? sel(p) + `<button class="btn btn-icon" title="Parola bağlantısını yeniden gönder" aria-label="${esc(p.email)} için bağlantıyı yeniden gönder" onclick="resendUserLink('${esc(p.email)}')">${ic('send')}</button><button class="btn btn-icon danger" title="Erişimi kaldır" aria-label="${esc(p.email)} erişimini kaldır" onclick="removeUser('${esc(p.email)}')">${ic('trash')}</button>` : `<span class="pill ${ROLE_PILL[p.role] || ''}">${ROLE_NAME[p.role] || esc(p.role)}</span>`}</div></div>`).join('');
     } catch (e) { el.innerHTML = `<p class="text-sm text-rose-600">Kullanıcılar okunamadı: ${esc(e.message)}</p>`; }
   };
   window.addUser = async function (e) {
     e.preventDefault();
-    if (!window.LX_OWNER) return toast('Kullanıcıyı yalnızca sahip (Yasin) ekleyebilir.', 'error');
+    if (!window.LX_MANAGER) return toast('Kullanıcıyı yalnızca Yasin ve Aziz ekleyebilir.', 'error');
     const email = val('userEmail').trim().toLowerCase(), name = val('userName').trim(), role = val('userRole');
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return toast('Geçerli bir e-posta yazın.', 'error');
     if (email === ((firebase.auth().currentUser || {}).email || '').toLowerCase()) return toast('Kendi hesabınızın rolünü değiştiremezsiniz.', 'error');
+    if (!window.LX_OWNER && email === OWNER_EMAIL) return toast('Bu hesap değiştirilemez.', 'error');
     const doc = { name: name || email, role, addedBy: window.__lxUid, addedAt: firebase.firestore.FieldValue.serverTimestamp() };
     if (role === 'partner') doc.company = val('userCompany');
     if (role === 'driver') doc.vehicleId = val('userVehicle');
@@ -138,7 +140,7 @@
     finally { btn.disabled = false; }
   };
   window.changeUserRole = async function (email, role) {
-    if (!window.LX_OWNER) return;
+    if (!window.LX_MANAGER) return;
     const patch = { role };
     if (role === 'partner') patch.company = val('userCompany') || (state.intermediaryCompanies.find(c => /moonlog/i.test(c.name)) || {}).id || '';
     try { await users().doc(email).update(patch); toast(`${email} artık ${ROLE_NAME[role].toLocaleLowerCase('tr')}.`); renderUsers(); }
@@ -163,7 +165,7 @@
     catch (err) { toast('Gönderilemedi: ' + err.message, 'error'); }
   };
   window.removeUser = async function (email) {
-    if (!window.LX_OWNER) return;
+    if (!window.LX_MANAGER) return;
     if (!confirm(email + ' erişimi kaldırılsın mı? Kişi artık hiçbir kaydı göremez; eklediği kayıtlar silinmez.')) return;
     try { await users().doc(email).delete(); toast('Erişim kaldırıldı: ' + email); renderUsers(); } catch (err) { toast('Kaldırılamadı: ' + err.message, 'error'); }
   };

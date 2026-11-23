@@ -143,17 +143,26 @@ async function run() {
     check(await until(Rp, async () => (await st(Rp)).expenses.some(e => e.note === 'A yeni gider')), 'Yazabilen hesabın kaydı görüntüleme hesabına canlı geldi');
 
     console.log('7) İş ortağı (Moonlog): kendi kayıtları, kısıtlı ekran, çöp kutusu');
-    await B.evaluate(() => switchTab('settings'));
+    await B.evaluate(() => switchTab('users'));
     await B.fill('#userName', 'Deneme Ortak'); await B.fill('#userEmail', USERS_P_EMAIL); await B.selectOption('#userRole', 'partner'); await B.selectOption('#userCompany', 'IC_MOONLOG');
     await B.locator('#userForm').evaluate(f => f.requestSubmit());
     check(await until(B, async () => (await B.textContent('#users-list')).includes(USERS_P_EMAIL)), 'Sahip iş ortağını ekledi');
-    await A.evaluate(() => { switchTab('settings'); renderUsers(); });
-    await A.waitForTimeout(500);
-    check(await A.evaluate(() => getComputedStyle(document.querySelector('[data-owner]')).display === 'none' && !document.getElementById('users-list').textContent.trim()), 'Yönetici Kullanıcılar bölümünü hiç görmüyor');
-    const rd2 = await A.evaluate(async () => { try { await firebase.firestore().collection('fleets').doc('lojix').collection('users').get(); return 'okudu'; } catch (e) { return e.code; } });
-    check(rd2 === 'permission-denied', 'Kural: sahip dışında kimse kullanıcı listesini okuyamaz');
-    const wr = await A.evaluate(async () => { try { await firebase.firestore().collection('fleets').doc('lojix').collection('users').doc('kotu@test.com').set({ role: 'admin' }); return 'yazdı'; } catch (e) { return e.code; } });
-    check(wr === 'permission-denied', 'Kural: sahip dışında kimse kullanıcı/rol ekleyemez');
+    // A = Aziz (kullanıcı yöneticisi): sahibi ve kendisini değiştiremez, diğerlerini yönetir; R (görüntüleyici) hiçbirini göremez
+    await A.evaluate(() => { switchTab('users'); renderUsers(); });
+    check(await until(A, async () => (await A.textContent('#users-list')).includes(USERS_P_EMAIL)), 'Aziz Kullanıcılar sekmesini görüyor, eklenen iş ortağı listede');
+    check(await A.evaluate(() => document.body.dataset.tab === 'users' && !document.getElementById('users-list').textContent.includes('Sahip')), 'Aziz sahibi (Yasin) listede görmüyor');
+    check(await A.evaluate(me => !document.querySelector(`#users-list [aria-label="${me} rolü"]`), USERS.a[1]), 'Aziz kendi rolünü değiştiremiyor (düğme yok)');
+    const fsU = (who, id, doc) => who.evaluate(async ([id, doc]) => { const r = firebase.firestore().collection('fleets').doc('lojix').collection('users').doc(id); try { doc ? await r.set(doc) : await r.get(); return 'ok'; } catch (e) { return e.code; } }, [id, doc]);
+    check(await fsU(A, 'yasin07.6666@gmail.com', { role: 'viewer' }) === 'permission-denied', 'Kural: Aziz sahibin belgesine yazamaz');
+    check(await fsU(A, USERS.a[1], { role: 'admin', name: 'x' }) === 'permission-denied', 'Kural: Aziz kendi belgesini değiştiremez');
+    check(await fsU(A, 'yeni@test.com', { role: 'viewer', name: 'Yeni' }) === 'ok', 'Kural: Aziz yeni kullanıcı ekleyebilir');
+    await A.evaluate(e => removeUser(e), 'yeni@test.com');
+    check(await until(A, async () => !(await A.textContent('#users-list')).includes('yeni@test.com')), 'Aziz kullanıcının erişimini kaldırabildi');
+    await Rp.evaluate(() => switchTab('users'));
+    check(await Rp.evaluate(() => document.body.dataset.tab !== 'users' && getComputedStyle(document.querySelector('[data-manager]')).display === 'none'), 'Görüntüleyici Kullanıcılar sekmesine giremiyor');
+    const rd2 = await Rp.evaluate(async () => { try { await firebase.firestore().collection('fleets').doc('lojix').collection('users').get(); return 'okudu'; } catch (e) { return e.code; } });
+    check(rd2 === 'permission-denied', 'Kural: sahip ve Aziz dışında kimse kullanıcı listesini okuyamaz');
+    check(await fsU(Rp, 'kotu@test.com', { role: 'admin' }) === 'permission-denied', 'Kural: sahip ve Aziz dışında kimse kullanıcı/rol ekleyemez');
     const Pp = await phone(b, 'P', null);
     check(await signIn(Pp, 'p'), 'İş ortağı girişi: ' + await status(Pp));
     check(await Pp.evaluate(() => window.LX_ROLE === 'partner' && document.body.classList.contains('partner')), 'Rol: iş ortağı');
@@ -193,7 +202,7 @@ async function run() {
 
     console.log('8) İkinci iş ortağını sahip ekler: hesap açılır, parola bağlantısı gider');
     const E2 = 'ikinci@moonlog.test';
-    await B.evaluate(() => switchTab('settings'));
+    await B.evaluate(() => switchTab('users'));
     await B.fill('#userName', 'İkinci Ortak'); await B.fill('#userEmail', E2); await B.selectOption('#userRole', 'partner'); await B.selectOption('#userCompany', 'IC_MOONLOG');
     await B.locator('#userForm').evaluate(f => f.requestSubmit());
     check(await until(B, async () => (await B.textContent('#toasts')).includes('Giriş hesabı açıldı')), 'Hesap açıldı bildirimi');
@@ -211,6 +220,7 @@ async function run() {
 
     console.log('9) Şoför: yalnızca yakıt ve gider, atanan araç kilitli; sahip erişimi kaldırır');
     const ED = 'sofor@test.com';
+    await B.evaluate(() => switchTab('users'));
     await B.fill('#userName', 'Deneme Şoför'); await B.fill('#userEmail', ED); await B.selectOption('#userRole', 'driver'); await B.selectOption('#userVehicle', 'V1');
     await B.locator('#userForm').evaluate(f => f.requestSubmit());
     check(await until(B, async () => (await B.textContent('#users-list')).includes(ED)), 'Sahip şoförü ekledi');

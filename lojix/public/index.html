@@ -153,7 +153,14 @@
     <div class="card p-5"><div class="flex items-center justify-between gap-3 flex-wrap mb-3"><h3 class="font-semibold text-[17px]">Son 6 ay</h3><div class="legend"><span style="--c:var(--ice)">Navlun</span><span style="--c:var(--line-strong)">Gider ve kesinti</span><span style="--c:var(--pos)">Net</span></div></div><div id="expense-chart" class="trend"></div></div>
    </section>
 
-   <section id="tab-vehicles" class="tab-content"><div id="veh-grid" class="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4"></div></section>
+   <section id="tab-vehicles" class="tab-content space-y-5">
+    <h3 class="font-semibold text-[17px]">Kâr karnesi</h3>
+    <div id="veh-grid" class="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4"></div>
+    <div data-admin class="card p-5 space-y-4">
+     <div class="lx-section-head"><div class="lx-section-icon"><svg class="ic"><use href="#i-truck"/></svg></div><div class="flex-1"><h3 class="font-semibold">Araç bilgileri</h3><p class="text-[13px] text-slate-500">Plaka, dorse, model, frigo ünitesi ve şoför iletişim bilgileri.</p></div><button data-w onclick="openVehicleModal()" class="btn btn-quiet"><svg class="ic"><use href="#i-plus"/></svg>Araç ekle</button><button data-w onclick="saveFleet()" class="btn btn-primary"><svg class="ic"><use href="#i-check"/></svg>Filoyu kaydet</button></div>
+     <div class="overflow-x-auto"><table class="w-full text-sm" style="min-width:900px"><thead><tr><th class="th">#</th><th class="th">Çekici plakası</th><th class="th">Dorse plakası</th><th class="th">Çekici model</th><th class="th">Frigo ünite</th><th class="th">Şoför</th><th class="th">Telefon</th><th class="th"></th></tr></thead><tbody id="set-tbody"></tbody></table></div>
+    </div>
+   </section>
 
    <section id="tab-drivers" class="tab-content">
     <div class="card overflow-x-auto"><table class="rtable w-full text-sm">
@@ -184,10 +191,6 @@
      </div>
     </div>
     <div data-admin class="card p-5 space-y-4">
-     <div class="lx-section-head"><div class="lx-section-icon"><svg class="ic"><use href="#i-truck"/></svg></div><div class="flex-1"><h3 class="font-semibold">Araçlar ve şoförler</h3><p class="text-[13px] text-slate-500">Plaka, dorse, model, frigo ünitesi ve şoför iletişim bilgileri.</p></div><button data-w onclick="openVehicleModal()" class="btn btn-quiet"><svg class="ic"><use href="#i-plus"/></svg>Araç ekle</button><button data-w onclick="saveFleet()" class="btn btn-primary"><svg class="ic"><use href="#i-check"/></svg>Filoyu kaydet</button></div>
-     <div class="overflow-x-auto"><table class="w-full text-sm" style="min-width:900px"><thead><tr><th class="th">#</th><th class="th">Çekici plakası</th><th class="th">Dorse plakası</th><th class="th">Çekici model</th><th class="th">Frigo ünite</th><th class="th">Şoför</th><th class="th">Telefon</th><th class="th"></th></tr></thead><tbody id="set-tbody"></tbody></table></div>
-    </div>
-    <div data-admin class="card p-5 space-y-4">
      <div class="lx-section-head"><div class="lx-section-icon"><svg class="ic"><use href="#i-building"/></svg></div><div class="flex-1"><h3 class="font-semibold">Aracı şirketler</h3><p class="text-[13px] text-slate-500">Seferde şirket seçilince karttaki kesinti oranı uygulanır. Eski seferlerin oranı değişmez.</p></div><button data-w onclick="addIntermediaryCompany()" class="btn btn-quiet"><svg class="ic"><use href="#i-plus"/></svg>Şirket ekle</button></div>
      <div id="intermediaryCompanyRows" class="space-y-3"></div>
     </div>
@@ -210,7 +213,10 @@
       <button type="button" class="theme-opt" role="radio" data-theme-opt="auto" onclick="setTheme('auto')"><span class="sw sw-auto"></span><b>Telefona göre</b><small>Gündüz açık, gece koyu</small></button>
      </div>
     </div>
-    <div data-owner class="card p-5 space-y-4">
+   </section>
+
+   <section id="tab-users" data-manager class="tab-content space-y-5">
+    <div data-manager class="card p-5 space-y-4">
      <div class="lx-section-head"><div class="lx-section-icon"><svg class="ic"><use href="#i-users"/></svg></div><div class="flex-1"><h3 class="font-semibold">Kullanıcılar ve yetkiler</h3><p class="text-[13px] text-slate-500">Her kişiye bir rol verin. Yönetici her şeyi görür ve değiştirir; görüntüleyici yalnızca görür; iş ortağı kendi sefer, gider ve yakıtını; şoför yalnızca kendi yakıt ve giderini girer. İş ortağı ve şoförün sildiği ya da düzenlediği kayıtlar 15 gün çöp kutusunda durur; kimin ne girdiği kayıtlarda yazar.</p></div></div>
      <div id="users-list"></div>
      <p id="users-note" class="text-[13px] text-slate-500"></p>

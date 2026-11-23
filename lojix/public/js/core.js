@@ -1,6 +1,6 @@
 const KEY='FRIGO_FILO_PRO_V1';
 const CATS=['Şoför Maaş / Sefer Primi','Şoför Harcırah / Yemek / Avans','Periyodik Bakım & Sanayi','Frigo Soğutucu Bakım / Gaz','Lastik & Kaplama','HGS / OGS / Köprü / Feribot','Sigorta / Kasko / Muayene / MTV','Trafik Cezası / Diğer'];
-const TABS=[['home','grid','Panelim','Panelim'],['dashboard','grid','Özet','Özet'],['trips','route','Sefer','Seferler'],['cari','users','Cari','Cari hesap'],['fuel','fuel','Yakıt','Yakıt'],['expenses','receipt','Gider','Giderler'],['vehicles','truck','Araçlar','Araç kâr karnesi'],['drivers','user','Şoför','Şoförler'],['maint','shield','Bakım','Bakım ve belgeler'],['settings','sliders','Ayarlar','Ayarlar'],['trash','trash','Çöp','Çöp kutusu']];
+const TABS=[['home','grid','Panelim','Panelim'],['dashboard','grid','Özet','Özet'],['trips','route','Sefer','Seferler'],['cari','users','Cari','Cari hesap'],['fuel','fuel','Yakıt','Yakıt'],['expenses','receipt','Gider','Giderler'],['vehicles','truck','Araçlar','Araçlar'],['drivers','user','Şoför','Şoförler'],['maint','shield','Bakım','Bakım ve belgeler'],['settings','sliders','Ayarlar','Ayarlar'],['users','users','Kullanıcı','Kullanıcılar'],['trash','trash','Çöp','Çöp kutusu']];
 const MONTHS=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
 const $=id=>document.getElementById(id);
 const ic=(n,c='')=>`<svg class="ic ${c}" aria-hidden="true"><use href="#i-${n}"/></svg>`;
@@ -49,7 +49,7 @@ window.__lxApplyData=d=>{const n=normalize(d);if(!n)return;state=n;try{localStor
 /* ---------- Navigasyon ---------- */
 const PRIMARY=['dashboard','trips','cari','fuel'];
 function buildNav(){
- const groups=[['Genel',['home','dashboard']],['Operasyon',['trips','fuel','expenses']],['Finans',['cari']],['Filo',['vehicles','drivers','maint']],['Sistem',['settings','trash']]];
+ const groups=[['Genel',['home','dashboard']],['Operasyon',['trips','fuel','expenses']],['Finans',['cari']],['Filo',['vehicles','drivers','maint']],['Sistem',['settings','users','trash']]];
  const navHtml='<nav aria-label="Ana menü">'+groups.map(([label,ids])=>`<div class="nav-group-label">${label}</div>`+TABS.filter(t=>ids.includes(t[0])).map(t=>`<button onclick="switchTab('${t[0]}')" data-tab="${t[0]}" class="nav-btn w-full text-left flex items-center gap-3">${ic(t[1])}<span>${t[3]}</span></button>`).join('')).join('')+'</nav>';
  $('side').insertAdjacentHTML('beforeend',navHtml);
  // Alt menü: herkese PRIMARY; sınırlı rollere (iş ortağı, şoför) Panelim, Gider ve Ayarlar da doğrudan (Daha yerine)
