@@ -381,7 +381,7 @@ body.ro #fab, body.ro [data-w], body.ro .row-act, body.ro .mc-act, body.ro #set-
 #fab { background: linear-gradient(135deg, #F7931E, #F06A00); }
 
 /* Sınırlı roller (iş ortağı, şoför): yalnızca kendi kayıtları; özet, cari, kâr, araç/bakım ve yönetim alanları gizli */
-body.limited #side [data-tab]:not([data-tab=trips]):not([data-tab=fuel]):not([data-tab=expenses]):not([data-tab=settings]),
+body.limited #side [data-tab]:not([data-tab=home]):not([data-tab=trips]):not([data-tab=fuel]):not([data-tab=expenses]):not([data-tab=settings]),
 body.limited #mnav [data-tab=dashboard], body.limited #mnav [data-tab=cari],
 body.limited #moreList [data-tab]:not([data-tab=expenses]):not([data-tab=settings]),
 body.limited [data-admin], body.limited .pk, body.limited #tripPreview, body.limited #side .nav-group-label { display: none !important; }
@@ -390,6 +390,23 @@ body.driver #side [data-tab=trips], body.driver #mnav [data-tab=trips], body.dri
 /* Çöp kutusu ve kullanıcı listesi yalnız yöneticide */
 body.ro [data-tab=trash], body.limited [data-tab=trash], body.ro [data-writer] { display: none !important; }
 [hidden] { display: none !important; }
+/* Panelim yalnız sınırlı rollerde; onlarda alt menü Daha yerine doğrudan Gider ve Ayarlar */
+body:not(.limited) [data-tab=home], body:not(.limited) #mnav .mob-lim, body.limited #mnav [data-tab=more] { display: none !important; }
+/* Panelim'de büyük hızlı işlem düğmeleri var: + düğmesi gerekmez */
+body[data-tab=home] #fab { display: none !important; }
 /* Kullanıcılar bölümü yalnız sahipte (Yasin) */
 body:not(.owner) [data-owner] { display: none !important; }
 s { color: var(--faint); }
+
+/* Panelim (iş ortağı, şoför) */
+.home-hero .home-hi { font-size: 28px; font-weight: 700; letter-spacing: -.02em; font-stretch: 92%; line-height: 1.15; color: #fff; }
+@media (max-width: 767px) { .home-hero .home-hi { font-size: 23px; } }
+.hero-pill { background: rgba(255,255,255,.14); color: #fff; border: 1px solid rgba(255,255,255,.22); }
+.home-hero .kpi-sub b { color: #fff; }
+.home-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 8px; border-radius: 12px; }
+.home-row:hover { background: var(--sunken); }
+.home-row + .home-row { border-top: 1px solid var(--line); }
+.home-steps { counter-reset: s; display: grid; gap: 14px; }
+.home-steps li { counter-increment: s; display: grid; grid-template-columns: 34px 1fr; column-gap: 12px; }
+.home-steps li::before { content: counter(s); grid-row: span 2; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; background: var(--brand-soft); color: var(--brand-text); }
+.home-steps b { font-weight: 650; } .home-steps span { color: var(--muted); font-size: 14px; }

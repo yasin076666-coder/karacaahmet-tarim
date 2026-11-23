@@ -1,6 +1,6 @@
 const KEY='FRIGO_FILO_PRO_V1';
 const CATS=['Şoför Maaş / Sefer Primi','Şoför Harcırah / Yemek / Avans','Periyodik Bakım & Sanayi','Frigo Soğutucu Bakım / Gaz','Lastik & Kaplama','HGS / OGS / Köprü / Feribot','Sigorta / Kasko / Muayene / MTV','Trafik Cezası / Diğer'];
-const TABS=[['dashboard','grid','Özet','Özet'],['trips','route','Sefer','Seferler'],['cari','users','Cari','Cari hesap'],['fuel','fuel','Yakıt','Yakıt'],['expenses','receipt','Gider','Giderler'],['vehicles','truck','Araçlar','Araç kâr karnesi'],['drivers','user','Şoför','Şoförler'],['maint','shield','Bakım','Bakım ve belgeler'],['settings','sliders','Ayarlar','Ayarlar'],['trash','trash','Çöp','Çöp kutusu']];
+const TABS=[['home','grid','Panelim','Panelim'],['dashboard','grid','Özet','Özet'],['trips','route','Sefer','Seferler'],['cari','users','Cari','Cari hesap'],['fuel','fuel','Yakıt','Yakıt'],['expenses','receipt','Gider','Giderler'],['vehicles','truck','Araçlar','Araç kâr karnesi'],['drivers','user','Şoför','Şoförler'],['maint','shield','Bakım','Bakım ve belgeler'],['settings','sliders','Ayarlar','Ayarlar'],['trash','trash','Çöp','Çöp kutusu']];
 const MONTHS=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
 const $=id=>document.getElementById(id);
 const ic=(n,c='')=>`<svg class="ic ${c}" aria-hidden="true"><use href="#i-${n}"/></svg>`;
@@ -49,11 +49,12 @@ window.__lxApplyData=d=>{const n=normalize(d);if(!n)return;state=n;try{localStor
 /* ---------- Navigasyon ---------- */
 const PRIMARY=['dashboard','trips','cari','fuel'];
 function buildNav(){
- const groups=[['Genel',['dashboard']],['Operasyon',['trips','fuel','expenses']],['Finans',['cari']],['Filo',['vehicles','drivers','maint']],['Sistem',['settings','trash']]];
+ const groups=[['Genel',['home','dashboard']],['Operasyon',['trips','fuel','expenses']],['Finans',['cari']],['Filo',['vehicles','drivers','maint']],['Sistem',['settings','trash']]];
  const navHtml='<nav aria-label="Ana menü">'+groups.map(([label,ids])=>`<div class="nav-group-label">${label}</div>`+TABS.filter(t=>ids.includes(t[0])).map(t=>`<button onclick="switchTab('${t[0]}')" data-tab="${t[0]}" class="nav-btn w-full text-left flex items-center gap-3">${ic(t[1])}<span>${t[3]}</span></button>`).join('')).join('')+'</nav>';
  $('side').insertAdjacentHTML('beforeend',navHtml);
- $('mnav').innerHTML=TABS.filter(t=>PRIMARY.includes(t[0])).map(t=>`<button onclick="switchTab('${t[0]}')" data-tab="${t[0]}" class="mob-btn">${ic(t[1],'ic-lg')}${t[2]}</button>`).join('')+`<button onclick="openSheet('moreSheet')" data-tab="more" class="mob-btn">${ic('more','ic-lg')}Daha</button>`;
- $('moreList').innerHTML=TABS.filter(t=>!PRIMARY.includes(t[0])).map(t=>`<button class="sheet-item" data-tab="${t[0]}" onclick="switchTab('${t[0]}')"><span class="sheet-ic bg-slate-100 text-slate-700">${ic(t[1])}</span><span>${t[3]}</span></button>`).join('');
+ // Alt menü: herkese PRIMARY; sınırlı rollere (iş ortağı, şoför) Panelim, Gider ve Ayarlar da doğrudan (Daha yerine)
+ $('mnav').innerHTML=TABS.filter(t=>PRIMARY.includes(t[0])||['home','expenses','settings'].includes(t[0])).map(t=>`<button onclick="switchTab('${t[0]}')" data-tab="${t[0]}" class="mob-btn${PRIMARY.includes(t[0])?'':' mob-lim'}">${ic(t[1],'ic-lg')}${t[2]}</button>`).join('')+`<button onclick="openSheet('moreSheet')" data-tab="more" class="mob-btn">${ic('more','ic-lg')}Daha</button>`;
+ $('moreList').innerHTML=TABS.filter(t=>!PRIMARY.includes(t[0])&&t[0]!=='home').map(t=>`<button class="sheet-item" data-tab="${t[0]}" onclick="switchTab('${t[0]}')"><span class="sheet-ic bg-slate-100 text-slate-700">${ic(t[1])}</span><span>${t[3]}</span></button>`).join('');
 }
 function openSheet(id){$(id).classList.add('open');const f=$(id).querySelector('button');if(f)f.focus()}
 function closeSheet(id){$(id).classList.remove('open')}
@@ -70,7 +71,7 @@ function switchTab(id){
  document.querySelectorAll('.tab-content').forEach(e=>e.classList.toggle('active',e.id==='tab-'+id));
  document.querySelectorAll('.nav-btn').forEach(b=>{const a=b.dataset.tab===id;b.classList.toggle('active',a);a?b.setAttribute('aria-current','page'):b.removeAttribute('aria-current')});
  document.querySelectorAll('.mob-btn').forEach(b=>{const a=b.dataset.tab===id||(b.dataset.tab==='more'&&!PRIMARY.includes(id));b.classList.toggle('active',a)});closeSheet('moreSheet');
- $('page-title').textContent=TABS.find(t=>t[0]===id)[3];$('monthFilter').style.visibility=['maint','settings'].includes(id)?'hidden':'';window.scrollTo(0,0);
+ $('page-title').textContent=TABS.find(t=>t[0]===id)[3];$('monthFilter').style.visibility=['maint','settings','home','trash'].includes(id)?'hidden':'';document.body.dataset.tab=id;window.scrollTo(0,0);
 }
 
 /* ---------- Filtre / hesap ---------- */

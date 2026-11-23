@@ -160,7 +160,8 @@ async function run() {
     const sp = await st(Pp);
     check(sp.trips.length === 0 && sp.expenses.length === 0 && sp.fuels.length === 0 && sp.payments.length === 0 && sp.vehicles.length > 0, 'Başkalarının kayıtlarını görmüyor, araç listesini görüyor');
     await Pp.evaluate(() => switchTab('cari'));
-    check(await Pp.evaluate(() => document.getElementById('tab-trips').classList.contains('active')), 'Cari sayfası kapalı, seferlere yönlendi');
+    check(await Pp.evaluate(() => document.getElementById('tab-home').classList.contains('active')), 'Cari sayfası kapalı, Panelim\'e yönlendi');
+    check(await Pp.evaluate(() => { const t = document.getElementById('tab-home').textContent; return t.includes('Deneme Ortak'.split(' ')[0]) && t.includes('Moonlog Lojistik · İş ortağı') && t.includes('Bekleyen tahsilat') && !/kâr|net /i.test(t); }), 'Panelim: karşılama, şirket etiketi, göstergeler; kâr yok');
     check(await Pp.evaluate(() => getComputedStyle(document.querySelector('#side [data-tab=dashboard]')).display === 'none' && getComputedStyle(document.querySelector('th.pk')).display === 'none' && getComputedStyle(document.getElementById('tripPreview')).display === 'none'), 'Özet menüsü, kâr sütunu ve formdaki kâr tahmini gizli');
     await Pp.evaluate(() => openModal('tripModal'));
     check(await Pp.inputValue('#tripCompany') === 'IC_MOONLOG' && await Pp.evaluate(() => document.getElementById('tripCompany').disabled), 'Seferde Moonlog kilitli seçili');
@@ -221,7 +222,8 @@ async function run() {
     check(await until(D, async () => (await status(D)).startsWith('Eşitlendi')), 'Şoför girişi: ' + await status(D));
     check(await D.evaluate(() => window.LX_ROLE === 'driver' && document.body.classList.contains('driver')), 'Rol: şoför');
     await D.evaluate(() => switchTab('trips'));
-    check(await D.evaluate(() => document.getElementById('tab-fuel').classList.contains('active') && getComputedStyle(document.querySelector('#side [data-tab=trips]')).display === 'none'), 'Sefer sayfası kapalı, yakıta yönlendi');
+    check(await D.evaluate(() => document.getElementById('tab-home').classList.contains('active') && getComputedStyle(document.querySelector('#side [data-tab=trips]')).display === 'none'), 'Sefer sayfası kapalı, Panelim\'e yönlendi');
+    check(await D.evaluate(() => { const t = document.getElementById('tab-home').textContent; return t.includes('Şoför') && t.includes('Bu ay yakıt') && !t.includes('Sefer ekle'); }), 'Şoför Panelim: yakıt/gider göstergeleri, sefer düğmesi yok');
     await D.evaluate(() => openModal('tripModal'));
     check(!(await D.evaluate(() => document.getElementById('tripModal').classList.contains('flex'))) && (await D.textContent('#toasts')).includes('yalnızca yakıt ve gider'), 'Sefer formu açılmadı');
     await D.evaluate(() => openModal('fuelModal'));

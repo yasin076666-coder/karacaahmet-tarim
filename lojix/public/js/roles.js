@@ -4,7 +4,7 @@
 // kaydın eski hâli yöneticinin çöp kutusunda 15 gün durur. Kullanıcıları yalnızca sahip (Yasin) yönetir.
 // Bulut kuralları aynı sınırları ayrıca uygular.
 (function () {
-  const TABS_OF = { partner: ['trips', 'fuel', 'expenses', 'settings'], driver: ['fuel', 'expenses', 'settings'] };
+  const TABS_OF = { partner: ['home', 'trips', 'fuel', 'expenses', 'settings'], driver: ['home', 'fuel', 'expenses', 'settings'] };
   const MODALS_OF = { partner: ['tripModal', 'fuelModal', 'expenseModal'], driver: ['fuelModal', 'expenseModal'] };
   const STAMP = ['trips', 'fuels', 'expenses'];
   const R = () => window.LX_ROLE, limited = () => !!TABS_OF[R()];
@@ -167,4 +167,61 @@
     if (!confirm(email + ' erişimi kaldırılsın mı? Kişi artık hiçbir kaydı göremez; eklediği kayıtlar silinmez.')) return;
     try { await users().doc(email).delete(); toast('Erişim kaldırıldı: ' + email); renderUsers(); } catch (err) { toast('Kaldırılamadı: ' + err.message, 'error'); }
   };
+  // ---- Panelim: iş ortağı ve şoförün ana sayfası (yalnızca kendi kayıtları; kâr/net hiç gösterilmez) ----
+  const short = v => v >= 1e6 ? fmtNum(v / 1e6, 1) + ' mn' : v >= 1e3 ? fmtNum(v / 1e3, 0) + ' b' : fmtNum(v, 0);
+  function monthBars(valueOf, label) {   // son 6 ay, tek seri
+    const ks = []; let [y, m] = today().slice(0, 7).split('-').map(Number);
+    for (let i = 0; i < 6; i++) { ks.unshift(`${y}-${String(m).padStart(2, '0')}`); if (--m === 0) { m = 12; y--; } }
+    const vals = ks.map(valueOf), max = Math.max(...vals, 1), W = 600, H = 190, top = 26, ch = 120, gw = W / 6, bw = 34;
+    if (!vals.some(Boolean)) return `<p class="text-sm text-slate-500 py-4">Son 6 ayda kayıt yok.</p>`;
+    return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Son 6 ay ${label}">${ks.map((k, i) => { const x = i * gw + gw / 2, h = vals[i] / max * ch, cur = i === 5;
+      return `<g><title>${MONTHS[+k.slice(5) - 1]}: ${fmtTL(vals[i])}</title><rect class="${cur ? 'bar-in' : 'bar-out'}" x="${x - bw / 2}" y="${top + ch - h}" width="${bw}" height="${Math.max(h, 2)}" rx="6"/>
+        <text x="${x}" y="${top + ch - h - 8}" text-anchor="middle">${vals[i] ? short(vals[i]) : ''}</text><text x="${x}" y="${H - 18}" text-anchor="middle">${MONTHS[+k.slice(5) - 1].slice(0, 3)}</text></g>`; }).join('')}
+      <line x1="0" x2="${W}" y1="${top + ch}" y2="${top + ch}" stroke="var(--line)"/></svg>`;
+  }
+  window.renderHome = function () {
+    const el = $('tab-home'); if (!el || !limited()) return;
+    const u = window.LX_USER || {}, P = R() === 'partner', now = new Date(), h = now.getHours();
+    const first = String(u.name || '').trim().split(' ')[0], mk = today().slice(0, 7);
+    const pmD = new Date(now.getFullYear(), now.getMonth() - 1, 1), pk = `${pmD.getFullYear()}-${String(pmD.getMonth() + 1).padStart(2, '0')}`;
+    const inM = k => x => (x.date || '').startsWith(k);
+    const co = state.intermediaryCompanies.find(c => c.id === u.company), veh = u.vehicleId ? state.vehicles.find(v => v.id === u.vehicleId) : null;
+    const tM = state.trips.filter(inM(mk)), tP = state.trips.filter(inM(pk)), fM = state.fuels.filter(inM(mk)), eM = state.expenses.filter(inM(mk));
+    const navM = sum(tM, 'price'), komM = tM.reduce((a, t) => a + tComm(t), 0), pend = state.trips.filter(t => t.paid !== 'Tahsil Edildi'), late = pend.filter(t => t.due && dayDiff(t.due) < 0).length;
+    const litM = sum(fM, 'liters'), fuelM = sum(fM, 'totalCost'), expM = sum(eM, 'amount');
+    const tile = (l, v, sub, c = '') => `<div class="card p-4 md:p-5"><div class="kpi-label">${l}</div><div class="kpi-value ${c}">${v}</div><div class="kpi-sub">${sub}</div></div>`;
+    const qb = (m, icn, cls, txt) => `<button class="quick" onclick="openModal('${m}')"><span class="q-ic ${cls}">${ic(icn, 'ic-lg')}</span>${txt}</button>`;
+    const quick = (P ? qb('tripModal', 'route', 'bg-emerald-100 text-emerald-700', 'Sefer ekle') : '') + qb('fuelModal', 'fuel', 'bg-sky-100 text-sky-700', 'Yakıt') + qb('expenseModal', 'receipt', 'bg-rose-100 text-rose-700', 'Gider')
+      + `<button class="quick voice" onclick="asstListen()" aria-label="Sesle kayıt"><span class="q-ic">${ic('mic', 'ic-lg')}</span>Söyle</button>`;
+    const recent = [...state.trips.map(r => ['trips', r]), ...state.fuels.map(r => ['fuels', r]), ...state.expenses.map(r => ['expenses', r])]
+      .sort((a, b) => (b[1].date || '').localeCompare(a[1].date || '') || b[1].id - a[1].id).slice(0, 6);
+    const KI = { trips: ['route', 'bg-emerald-100 text-emerald-700'], fuels: ['fuel', 'bg-sky-100 text-sky-700'], expenses: ['receipt', 'bg-rose-100 text-rose-700'] };
+    const FT = { CEKICI: 'Çekici mazotu', FRIGO: 'Frigo mazotu', ADBLUE: 'AdBlue' };
+    const row = ([k, r]) => { const [icn, cls] = KI[k], v = vehObj(r.vehicleId).plate;
+      const t = k === 'trips' ? esc(r.route || 'Sefer') : k === 'fuels' ? `${FT[r.type] || 'Yakıt'} · ${fmtNum(r.liters, 0)} lt` : esc(r.category || 'Gider');
+      const sub = [esc(v), k === 'trips' ? esc(r.client || '') : k === 'expenses' ? esc(r.note || '') : esc(r.station || '')].filter(Boolean).join(' · ');
+      const amt = k === 'trips' ? r.price : k === 'fuels' ? r.totalCost : r.amount;
+      return `<button class="home-row" onclick="editRecord('${k}',${r.id})"><span class="sheet-ic ${cls}">${ic(icn)}</span><span class="min-w-0 flex-1 text-left"><b class="block truncate font-semibold">${t}</b><small class="block truncate text-slate-500">${sub}</small></span><span class="text-right shrink-0"><b class="block tabular-nums">${fmtTL(amt)}</b><small class="text-slate-500">${fmtD(r.date)}</small></span></button>`; };
+    const any = state.trips.length + state.fuels.length + state.expenses.length;
+    const sentence = P ? (tM.length ? `Bu ay <b>${tM.length} sefer</b> girdiniz, toplam <b>${fmtTL(navM)}</b> navlun.` : 'Bu ay henüz sefer girmediniz.') + (late ? ` <b>${late}</b> seferin vadesi geçti.` : '')
+      : (fM.length || eM.length ? `Bu ay <b>${fmtNum(litM, 0)} lt</b> yakıt ve <b>${fmtTL(expM)}</b> gider girdiniz.` : 'Bu ay henüz kayıt girmediniz.');
+    el.innerHTML = `
+     <div class="card kpi-hero home-hero p-5 md:p-7">
+      <div class="flex items-center gap-3"><img class="logo-tile w-12 h-12 shrink-0" src="img/icon-192.png" alt=""><div class="min-w-0"><div class="kpi-label">${now.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' })}</div><h2 class="home-hi">${h < 12 ? 'Günaydın' : h < 18 ? 'İyi günler' : 'İyi akşamlar'}${first ? ', ' + esc(first) : ''}</h2></div></div>
+      <div class="flex flex-wrap items-center gap-2 mt-4"><span class="pill hero-pill">${ic(P ? 'building' : 'truck', 'ic-sm')}${P ? esc(co ? co.name : 'İş ortağı') + ' · İş ortağı' : 'Şoför'}</span>${!P && veh ? plate(veh.plate) : ''}</div>
+      <p class="kpi-sub mt-3 text-[15px]">${sentence}</p>
+     </div>
+     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">${P
+       ? tile('Bu ay sefer', tM.length, `Geçen ay ${tP.length}`) + tile('Bu ay navlun', fmtTL(navM), `Geçen ay ${fmtTL(sum(tP, 'price'))}`) + tile(`${esc(co ? co.name.split(' ')[0] : 'Şirket')} komisyonu`, fmtTL(komM), `Bu ay · %${fmtNum(co ? co.rate : 0, 1)}`, 'text-violet-700') + tile('Bekleyen tahsilat', fmtTL(sum(pend, 'price')), `${pend.length} sefer${late ? ` · ${late} gecikmiş` : ''}`, late ? 'text-rose-600' : 'text-amber-700')
+       : tile('Bu ay yakıt', `${fmtNum(litM, 0)} lt`, fmtTL(fuelM), 'text-sky-700') + tile('Bu ay gider', fmtTL(expM), `${eM.length} kayıt`, 'text-rose-600') + tile('Yakıt kaydı', fM.length, 'bu ay') + tile('Araç', veh ? esc(veh.plate) : '—', veh ? esc(veh.model || veh.driver || '') : 'Her araca girebilirsiniz')}</div>
+     <div class="quick-grid" style="grid-template-columns:repeat(${P ? 4 : 3},minmax(0,1fr))">${quick}</div>
+     ${any ? `<div class="grid grid-cols-1 xl:grid-cols-5 gap-4 md:gap-5">
+      <div class="card p-5 xl:col-span-3"><h3 class="font-semibold text-[17px] mb-2">Son 6 ay · ${P ? 'navlun' : 'yakıt ve gider'}</h3><div class="trend">${monthBars(k => P ? sum(state.trips.filter(inM(k)), 'price') : sum(state.fuels.filter(inM(k)), 'totalCost') + sum(state.expenses.filter(inM(k)), 'amount'), P ? 'navlun' : 'yakıt ve gider')}</div></div>
+      <div class="card p-3 md:p-4 xl:col-span-2"><div class="flex items-center justify-between px-2 pb-1"><h3 class="font-semibold text-[17px]">Son kayıtlarım</h3><button class="text-sm font-semibold text-blue-600" onclick="switchTab('${P ? 'trips' : 'fuel'}')">Tümü</button></div>${recent.map(row).join('')}</div>
+     </div>` : `<div class="card p-5 md:p-6"><h3 class="font-semibold text-[17px] mb-3">Nasıl başlarım?</h3><ol class="home-steps">
+      <li><b>${P ? 'Seferi ekleyin' : 'Yakıt fişini girin'}</b><span>${P ? 'Yukarıdaki "Sefer ekle" ile güzergâh, müşteri ve navlunu yazın. ' + esc(co ? co.name : 'Şirketiniz') + ' kendiliğinden seçilir.' : 'Litre, fiyat ve gösterge km yeterli. Aracınız kendiliğinden seçilir.'}</span></li>
+      <li><b>Ya da söyleyin</b><span>"Söyle"ye basıp ${P ? '"Antalya\'dan İstanbul\'a 45 bin navlun"' : '"400 litre mazot 44,5\'ten"'} deyin; form dolar, siz kaydedersiniz.</span></li>
+      <li><b>Kayıt yöneticiye gider</b><span>Girdiğiniz kayıt anında yöneticinin ekranına düşer. Yalnızca kendi kayıtlarınızı görür ve düzenlersiniz.</span></li></ol></div>`}`;
+  };
+  wrap('renderAll', (orig, args) => { const r = orig.apply(null, args); renderHome(); return r; });
 })();
