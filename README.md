@@ -1,4 +1,4 @@
-# Karacaahmet Tarım
+# Hesap Defterim
 
 Al-sat, masraf ve cari hesap uygulaması. Firebase Hosting + Firestore.
 

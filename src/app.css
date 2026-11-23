@@ -2,14 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Yazı tipleri uygulamayla birlikte gelir (internetsiz de çalışır) */
+@font-face { font-family: 'Rubik'; font-style: normal; font-weight: 400; font-display: swap; src: url(../fonts/rubik-latin-400-normal.woff2) format('woff2'); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+@font-face { font-family: 'Rubik'; font-style: normal; font-weight: 400; font-display: swap; src: url(../fonts/rubik-latin-ext-400-normal.woff2) format('woff2'); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
+@font-face { font-family: 'Rubik'; font-style: normal; font-weight: 500; font-display: swap; src: url(../fonts/rubik-latin-500-normal.woff2) format('woff2'); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+@font-face { font-family: 'Rubik'; font-style: normal; font-weight: 500; font-display: swap; src: url(../fonts/rubik-latin-ext-500-normal.woff2) format('woff2'); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
+@font-face { font-family: 'Rubik'; font-style: normal; font-weight: 700; font-display: swap; src: url(../fonts/rubik-latin-700-normal.woff2) format('woff2'); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+@font-face { font-family: 'Rubik'; font-style: normal; font-weight: 700; font-display: swap; src: url(../fonts/rubik-latin-ext-700-normal.woff2) format('woff2'); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
+@font-face { font-family: 'Dancing Script'; font-style: normal; font-weight: 700; font-display: swap; src: url(../fonts/dancing-script-latin-700-normal.woff2) format('woff2'); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+@font-face { font-family: 'Dancing Script'; font-style: normal; font-weight: 700; font-display: swap; src: url(../fonts/dancing-script-latin-ext-700-normal.woff2) format('woff2'); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
+
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  font-family: Rubik, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   -webkit-tap-highlight-color: transparent;
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
 }
 .custom-modal { display: none; }
-.tab-content { scroll-margin-top: 84px; } /* yapışkan başlığın altında kalmasın */
+.tab-content { scroll-margin-top: 12px; }
 .print-only { display: none; }
 @media print {
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -19,8 +29,18 @@ body {
   #stmt-modal { position: static !important; display: block !important; background: #fff !important; }
   .no-print { display: none !important; }
 }
-.tab-btn.active {
-  background-color: #0f172a;
-  color: #ffffff;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-}
+/* Alt menüde seçili sekme: orman yeşili zemin, yaprak yeşili çizgi */
+.tab-btn.active { background-color: #213529; color: #ffffff; box-shadow: inset 0 -3px 0 #7CB842; }
+.tab-btn.active i { color: #A0CF6B !important; }
+.tab-btn.active span span { color: #C3E29E !important; }
+/* Klavyeyle gezinenler için görünür odak */
+:focus-visible { outline: 3px solid #7CB842; outline-offset: 2px; }
+/* Defter satırı: etiket solda, tutar sağda */
+.ledger-row { display: flex; justify-content: space-between; align-items: baseline; gap: .75rem; padding: .55rem 0; border-bottom: 1px solid #EAEFE6; }
+.ledger-row:last-child { border-bottom: 0; }
+/* Tutarlar alt alta hizalı; yalnız rakam alanlarında (Rubik'te parantezleri de genişletiyor) */
+#cash-total, .ledger-row > span:last-child, td { font-variant-numeric: tabular-nums; }
+/* Mikrofon dinlerken: yaprak yeşili halka nabzı */
+@keyframes mic-ring { 0% { box-shadow: 0 0 0 0 rgba(124,184,66,.55); } 100% { box-shadow: 0 0 0 14px rgba(124,184,66,0); } }
+.mic-live { animation: mic-ring 1.2s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }

@@ -215,7 +215,7 @@ function pdfFromJpegs(jpgs, w, h) {
 function buildStatementPdf() {
   if (!stmtCtx || !stmtCtx.kind || !STMT_L[stmtCtx.kind]) { alert('Önce bir cari veya kart ekstresi açın.'); return; }
   const d = stmtData(); if (!d) { alert('Ekstre verisi hazır değil. Lütfen ekstreyi yeniden açın.'); return; }
-  const biz = getBiz() || 'Karacaahmet Tarım', today = formatDate(getTodayString()), bal = d.closing;
+  const biz = getBiz() || 'Hesap Defterim', today = formatDate(getTodayString()), bal = d.closing;
   const kindLabel = { customer: 'MÜŞTERİ', supplier: 'TEDARİKÇİ', card: 'KART' }[stmtCtx.kind];
   const rng0 = (d.st || d.en) ? `${d.st ? formatDate(d.st) : '...'} - ${d.en ? formatDate(d.en) : '...'}` : 'Tüm zamanlar';
   const rng = rng0 + (d.flabel ? ' · ' + d.flabel : '');
@@ -379,7 +379,7 @@ function remindWhatsApp() {
   if (!num) return alert('Geçerli bir cep telefonu girin (örn. 0532 123 45 67).');
   // Ekstre filtrelerinden bağımsız, tüm zamanların kalan bakiyesi
   const bal = round2(sales.filter(s => fk(s.customer) === fk(name)).reduce((a, s) => a + s.total - (s.paid || 0), 0));
-  const msg = `Merhaba ${name}, ${getBiz() || 'Karacaahmet Tarım'} olarak hatırlatmak isteriz: ${formatDate(getTodayString())} itibarıyla güncel bakiyeniz ${formatMoney(bal)}. İyi çalışmalar.`;
+  const msg = `Merhaba ${name}, ${getBiz() || 'Hesap Defterim'} olarak hatırlatmak isteriz: ${formatDate(getTodayString())} itibarıyla güncel bakiyeniz ${formatMoney(bal)}. İyi çalışmalar.`;
   window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(msg), '_blank');
 }
 function getBiz() { try { return localStorage.getItem('tp_biz') || ''; } catch (e) { return ''; } }
@@ -398,7 +398,7 @@ function renderStatement() {
   if (!d) { stmtRowsCur = []; return; }
   stmtRowsCur = d.rows;
   updateFilterUi();
-  const biz = getBiz() || 'Karacaahmet Tarım', today = formatDate(getTodayString()), bal = d.closing;
+  const biz = getBiz() || 'Hesap Defterim', today = formatDate(getTodayString()), bal = d.closing;
   const kindLabel = { customer: 'Müşteri', supplier: 'Tedarikçi', card: 'Kart' }[stmtCtx.kind];
   const rng0 = (d.st || d.en) ? `${d.st ? formatDate(d.st) : '...'} - ${d.en ? formatDate(d.en) : '...'}` : 'Tüm zamanlar';
   const rng = rng0 + (d.flabel ? ' · ' + d.flabel : '');
@@ -457,7 +457,7 @@ function delStmtPay(i) {
 function shareStatement() {
   if (!stmtCtx || !stmtCtx.kind || !STMT_L[stmtCtx.kind]) { alert('Önce bir cari veya kart ekstresi açın.'); return; }
   const d = stmtData(); if (!d) { alert('Ekstre verisi hazır değil. Lütfen ekstreyi yeniden açın.'); return; }
-  const biz = getBiz() || 'Karacaahmet Tarım';
+  const biz = getBiz() || 'Hesap Defterim';
   const rng0 = (d.st || d.en) ? `${d.st ? formatDate(d.st) : '...'} - ${d.en ? formatDate(d.en) : '...'}` : 'Tüm zamanlar';
   const rng = rng0 + (d.flabel ? ' · ' + d.flabel : '');
   const txt = `${biz}\nCARİ HESAP EKSTRESİ\n${d.title}\nDönem: ${rng}\nTarih: ${formatDate(getTodayString())}\n\n`

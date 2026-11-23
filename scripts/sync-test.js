@@ -14,8 +14,9 @@ http.createServer((q, res) => {
   fs.readFile(f, (e, b) => { if (e) { res.writeHead(404); return res.end(); } res.writeHead(200, { 'Content-Type': f.endsWith('.js') ? 'text/javascript' : f.endsWith('.css') ? 'text/css' : 'text/html' }); res.end(b); });
 }).listen(8810, run);
 
-async function phone(b, name, local, storageState) {
+async function phone(b, name, local, storageState, opts = {}) {
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, storageState });
+  if (opts.blockFirestore) await ctx.route('http://localhost:8080/**', r => r.abort()); // çekmeyen yer: bulut yok
   await ctx.addInitScript(([s, fresh]) => {
     window.KT_EMULATOR = true;
     if (fresh && !sessionStorage.x) { localStorage.clear(); for (const k in s) localStorage.setItem(k, s[k]); sessionStorage.x = 1; }
@@ -23,7 +24,7 @@ async function phone(b, name, local, storageState) {
   const p = await ctx.newPage();
   p.errs = []; p.dialogs = [];
   p.on('pageerror', e => p.errs.push(e.message));
-  p.on('dialog', d => { p.dialogs.push(d.message()); d.accept(); });
+  p.on('dialog', d => { p.dialogs.push(d.message()); opts.dismiss ? d.dismiss() : d.accept(); });
   await p.goto('http://localhost:8810/', { waitUntil: 'networkidle' });
   p.ctx = ctx; p.name = name;
   return p;
@@ -140,6 +141,86 @@ async function run() {
   await A2.fill('#waste-prod', 'Maydanoz'); await A2.locator('#waste-prod').dispatchEvent('input'); await A2.fill('#waste-qty', '3');
   await A2.evaluate(() => saveWaste());
   check(await until(B, async () => (await data(B)).wastes.some(w => w.prod === 'Maydanoz' && w.qty === 3 && w.unit === 'adet')), 'fire kaydı (3 adet maydanoz) B’ye ulaştı');
+
+  console.log('12) Çekmeyen yerde açılış: telefondaki kayıtlar silinmez');
+  const st12 = await A2.ctx.storageState({ indexedDB: true }), before12 = counts(await data(A2));
+  const C = await phone(b, 'C', null, st12, { blockFirestore: true });
+  await C.waitForTimeout(20000);
+  check(counts(await data(C)) === before12, `bulut yokken kayıtlar duruyor (${counts(await data(C))} = ${before12})`);
+  check(!(await statusText(C)).startsWith('Eşitlendi'), 'bulut yokken "Eşitlendi" denmedi: ' + await statusText(C));
+  check(!C.dialogs.some(m => m.includes('silinecek')), 'silme sorusu çıkmadı');
+  await C.ctx.close();
+
+  console.log('13) Yeni telefon işletme adını ve telefonları silmez');
+  await A2.evaluate(() => { document.getElementById('stmt-biz').value = 'Karacaahmet Test'; saveBiz(); });
+  check(await until(B, async () => (await data(B)).biz === 'Karacaahmet Test'), 'işletme adı B’ye ulaştı');
+  const phonesBefore = JSON.stringify((await data(B)).phones);
+  const F = await phone(b, 'F', {});
+  check(await signIn(F), 'boş yeni telefon eşitlendi');
+  await F.waitForTimeout(2000);
+  check((await data(F)).biz === 'Karacaahmet Test' && JSON.stringify((await data(F)).phones) === phonesBefore, 'yeni telefona işletme adı ve telefonlar geldi');
+  check((await data(B)).biz === 'Karacaahmet Test' && JSON.stringify((await data(B)).phones) === phonesBefore, 'B’de işletme adı ve telefonlar silinmedi');
+  await F.ctx.close();
+
+  console.log('14) Eski verili, hiç eşitlenmemiş telefon buluttaki düzenlemeyi ezmez, silineni geri getirmez');
+  const sid14 = await A2.evaluate(() => { const s = sales.find(x => x.total - (x.paid || 0) > 5); s.payments.push({ id: newId('PY'), date: getTodayString(), amount: 1, note: 'test14' }); s.paid = sumPay(s.payments); saveAll(); return s.id; });
+  check(await until(B, async () => (await data(B)).sales.find(s => s.id === sid14).payments.some(p => p.note === 'test14')), 'düzenleme B’ye ulaştı');
+  const countB14 = (await data(B)).sales.length;
+  const D = await phone(b, 'D', seed, null, { dismiss: true });
+  check(await signIn(D), 'eski verili telefon eşitlendi');
+  check((await data(D)).sales.find(s => s.id === sid14).payments.some(p => p.note === 'test14'), 'eski telefon buluttaki yeni hâli aldı (ezmedi)');
+  check(D.dialogs.some(m => m.includes('bulutta olmayan')), 'buluttaki olmayan kayıtlar için soru soruldu');
+  await B.waitForTimeout(2500);
+  check((await data(B)).sales.length === countB14, `silinen kayıtlar geri gelmedi (B: ${(await data(B)).sales.length} = ${countB14})`);
+  await D.ctx.close();
+
+  console.log('15) İki telefon aynı satışa aynı anda tahsilat girer: ikisi de korunur');
+  const sid15 = await A2.evaluate(() => sales.find(x => x.total - (x.paid || 0) > 200).id);
+  for (const P of [A2, B]) { await P.ctx.setOffline(true); await P.evaluate(() => window.dispatchEvent(new Event('offline'))); }
+  await A2.evaluate(id => { const s = sales.find(x => x.id === id); s.payments.push({ id: newId('PY'), date: getTodayString(), amount: 50, note: 'A15' }); s.paid = sumPay(s.payments); saveAll(); }, sid15);
+  await B.evaluate(id => { const s = sales.find(x => x.id === id); s.payments.push({ id: newId('PY'), date: getTodayString(), amount: 70, note: 'B15' }); s.paid = sumPay(s.payments); saveAll(); }, sid15);
+  await A2.ctx.setOffline(false); await A2.evaluate(() => window.dispatchEvent(new Event('online')));
+  await A2.waitForTimeout(3000);
+  await B.ctx.setOffline(false); await B.evaluate(() => window.dispatchEvent(new Event('online')));
+  const both = P => async () => { const s = (await data(P)).sales.find(x => x.id === sid15); return ['A15', 'B15'].every(n => s.payments.some(p => p.note === n)) && Math.abs(s.paid - s.payments.reduce((a, p) => a + p.amount, 0)) < 0.01; };
+  check(await until(A2, both(A2), 20000), 'A’da iki tahsilat da var ve ödenen toplamı doğru');
+  check(await until(B, both(B), 20000), 'B’de iki tahsilat da var ve ödenen toplamı doğru');
+
+  console.log('16) Bulut boşken ilk eşitleme: soru sormadan her şey yüklenir');
+  const E = await phone(b, 'E', seed, null, { dismiss: true });
+  await E.evaluate(() => firebase.auth().createUserWithEmailAndPassword('bos@ornek.com', 'test1234'));
+  check(await until(E, async () => (await statusText(E)).startsWith('Eşitlendi')), 'boş buluta ilk eşitleme tamamlandı');
+  check(!E.dialogs.some(m => m.includes('bulutta olmayan')), 'boş bulutta soru sorulmadı');
+  const eCount = counts(await data(E));
+  check(eCount === `${JSON.parse(seed.tp_sales).length}/${JSON.parse(seed.tp_purchases).length}/${JSON.parse(seed.tp_expenses).length}/${JSON.parse(seed.tp_cards).length}/${JSON.parse(seed.tp_cash).length}`, `kayıtlar telefonda duruyor (${eCount})`);
+  const cloudSales = await E.evaluate(() => firebase.firestore().collection('users').doc(firebase.auth().currentUser.uid).collection('sales').get({ source: 'server' }).then(q => q.size));
+  check(cloudSales === JSON.parse(seed.tp_sales).length, `bütün satışlar buluta yüklendi (${cloudSales})`);
+  await E.ctx.close();
+
+  console.log('17) Yazma sürerken aynı kayıt tekrar düzenlenir: ikinci düzenleme kaybolmaz');
+  const sid17 = await A2.evaluate(() => sales.find(x => x.total - (x.paid || 0) > 300).id);
+  await A2.evaluate(() => { const db = firebase.firestore(), orig = db.runTransaction.bind(db); db.runTransaction = async fn => { await new Promise(r => setTimeout(r, 2500)); return orig(fn); }; });
+  const pay = (P, id, amt, note) => P.evaluate(([id, amt, note]) => { const s = sales.find(x => x.id === id); s.payments.push({ id: newId('PY'), date: getTodayString(), amount: amt, note }); s.paid = sumPay(s.payments); saveAll(); }, [id, amt, note]);
+  await pay(A2, sid17, 10, 'A17-1');                // yazma başlar, 2,5 sn sürer
+  await A2.waitForTimeout(300);
+  await pay(B, sid17, 20, 'B17');                   // bu arada öbür telefon değiştirir
+  await B.waitForTimeout(1200);
+  await pay(A2, sid17, 30, 'A17-2');                // yazma bitmeden ikinci düzenleme
+  const all17 = P => async () => { const s = (await data(P)).sales.find(x => x.id === sid17); return ['A17-1', 'A17-2', 'B17'].every(n => s.payments.some(p => p.note === n)); };
+  check(await until(A2, all17(A2), 25000), 'A’da üç tahsilat da var');
+  check(await until(B, all17(B), 25000), 'B’de üç tahsilat da var');
+  await A2.evaluate(() => { const db = firebase.firestore(); delete db.runTransaction; });
+
+  console.log('18) İki telefon aynı satışı aynı anda "tamamı ödendi" yapar: ödeme iki kez sayılmaz');
+  const sid18 = await A2.evaluate(() => sales.find(x => x.total - (x.paid || 0) > 100).id);
+  await until(B, async () => (await data(B)).sales.some(x => x.id === sid18));
+  for (const P of [A2, B]) { await P.ctx.setOffline(true); await P.evaluate(() => window.dispatchEvent(new Event('offline'))); }
+  for (const P of [A2, B]) await P.evaluate(id => { const s = sales.find(x => x.id === id); setPaidTo(s, s.total, getTodayString()); saveAll(); }, sid18);
+  await A2.ctx.setOffline(false); await A2.evaluate(() => window.dispatchEvent(new Event('online')));
+  await A2.waitForTimeout(3000);
+  await B.ctx.setOffline(false); await B.evaluate(() => window.dispatchEvent(new Event('online')));
+  await B.waitForTimeout(4000);
+  for (const P of [A2, B]) { const s = (await data(P)).sales.find(x => x.id === sid18); check(Math.abs(s.paid - s.total) < 0.01, `${P.name}: ödenen ${s.paid} = toplam ${s.total} (iki kez sayılmadı)`); }
 
   const errs = [...A.errs, ...B.errs, ...A2.errs];
   check(errs.length === 0, 'sayfa hatası yok ' + (errs.length ? JSON.stringify(errs.slice(0, 3)) : ''));

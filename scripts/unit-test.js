@@ -24,7 +24,7 @@ console.log('Birim testleri geçti.');
 // ---- Asistan ayrıştırıcısı ----
 const actx = {};
 vm.createContext(actx);
-vm.runInContext(fs.readFileSync(path.join(__dirname, '../public/js/assistant.js'), 'utf8') + '\nthis.parseCommand = parseCommand;', actx);
+vm.runInContext(fs.readFileSync(path.join(__dirname, '../public/js/assistant.js'), 'utf8') + '\nthis.parseCommand = parseCommand; this.asstSpeechText = asstSpeechText; this.asstMergeText = typeof asstMergeText === "function" ? asstMergeText : null;', actx);
 const C = { today: '2026-11-20', customers: ['Halil kardeşi', 'Halil', 'Kor ateş', 'Latif', 'Fatoş'], suppliers: ['Hal', 'Mehmet'], products: ['Kıvırcık', 'Lahana', 'Kara lahana', 'Maydanoz', 'Düz marul'] };
 const P = t => JSON.parse(JSON.stringify(actx.parseCommand(t, C)));
 const I = (prod, qty, unit, price) => ({ prod, qty, unit, price });
@@ -50,6 +50,15 @@ const cases = [
   ["Halil'in borcu ne kadar", { type: 'report', metric: 'balance', party: { name: 'Halil', kind: 'customer' } }],
   ['Kasada ne kadar var', { type: 'report', metric: 'cash' }],
   ['Bu hafta en çok ne sattım', { type: 'report', period: 'week', metric: 'top' }],
+  ['Halil 2 bin 500 ödedi', { type: 'collect', party: 'Halil', amount: 2500 }],
+  ['Halil 2 bin beş yüz lira ödedi', { type: 'collect', party: 'Halil', amount: 2500 }],
+  ['Halil 1.000.000 ödedi', { type: 'collect', party: 'Halil', amount: 1000000 }],
+  ["Halil'e 20 adet kıvırcık yirmi beşten sattım", { type: 'sale', party: 'Halil', items: [I('Kıvırcık', 20, 'adet', 25)] }],
+  ["Latif'e 10 kasa marul 2 kasa lahana sattım", { type: 'sale', party: 'Latif', items: [I('Marul', 10, 'kasa', 0), I('Lahana', 2, 'kasa', 0)] }],
+  ['Halil bin buçuk lira ödedi', { type: 'collect', party: 'Halil', amount: 1500 }],
+  ['Halil iki bin buçuk ödedi', { type: 'collect', party: 'Halil', amount: 2500 }],
+  ['Halil yüz buçuk ödedi', { type: 'collect', party: 'Halil', amount: 150 }],
+  ["Halil'e iki buçuk kilo lahana 30 liradan sattım", { type: 'sale', party: 'Halil', items: [I('Lahana', 2.5, 'kg', 30)] }],
   ['merhaba', { type: 'unknown' }],
 ];
 let bad = 0;
@@ -59,3 +68,20 @@ for (const [text, want] of cases) {
 }
 assert.strictEqual(bad, 0, `${bad} asistan cümlesi yanlış anlaşıldı`);
 console.log(`Asistan: ${cases.length} cümlenin hepsi doğru anlaşıldı.`);
+
+// ---- Sesli okuma metni ----
+const ST = actx.asstSpeechText;
+assert.strictEqual(ST('Bu ay: satış ₺12.500,00 − alış ₺3.000,50 − gider ₺0,00 = net kâr <b>₺9.499,50</b>'), 'Bu ay: satış 12.500 lira eksi alış 3.000 lira 50 kuruş eksi gider 0 lira eşittir net kâr 9.499 lira 50 kuruş');
+assert.strictEqual(ST('💵 Kasadaki nakit: <b>₺10.382,00</b>'), 'Kasadaki nakit: 10.382 lira');
+assert.strictEqual(ST('Bu ay en çok satılanlar: <br>1. <b>Kıvırcık</b> 20 adet · ₺500,00'), 'Bu ay en çok satılanlar: . 1. Kıvırcık 20 adet , 500 lira');
+console.log('Sesli okuma metni testleri geçti.');
+
+// ---- iPhone ses parçalarını birleştirme ----
+const MT = actx.asstMergeText;
+assert.ok(MT, 'asstMergeText tanımlı değil');
+assert.strictEqual(MT('kasada ne', 'kasada ne kadar'), 'kasada ne kadar');   // birikimli
+assert.strictEqual(MT('kasada ne kadar', 'kasada ne'), 'kasada ne kadar');   // eski parça tekrar geldi
+assert.strictEqual(MT('kasada ne kadar', 'var'), 'kasada ne kadar var');     // yeni parça
+assert.strictEqual(MT('', 'Halil'), 'Halil');
+assert.strictEqual(MT('Halil 500', 'halil 500 ödedi'), 'halil 500 ödedi');   // büyük/küçük harf farkı
+console.log('Ses parçası birleştirme testleri geçti.');

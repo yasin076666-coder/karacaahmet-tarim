@@ -18,25 +18,44 @@ const asstTitle = s => s.split(' ').filter(Boolean).map(w => w[0].toLocaleUpperC
 const asstEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const NB = '(?<!\\p{L})', NA = '(?!\\p{L})'; // Türkçe harflerle çalışan kelime sınırı
 
+// Sayı kelimeleri ve rakamlar tek sayıya: "yirmi beş"→25, "2 bin 500"→2500, "bin beş yüz"→1500.
+// İki ayrı rakam ("20 25": miktar ve fiyat) birleşmez; rakam yalnız "bin/yüz"den sonra devam eder.
+function asstJoinNumbers(t) {
+  const out = [], toks = t.split(' ');
+  for (let i = 0; i < toks.length;) {
+    const kind = w => /^\d+(?:\.\d+)?$/.test(w) ? 'D' : w in ASST_NUM ? 'W' : (w === 'yüz' || w === 'bin') ? 'M' : w === 'buçuk' ? 'H' : '';
+    if (!kind(toks[i]) || kind(toks[i]) === 'H') { out.push(toks[i++]); continue; }
+    const run = [toks[i++]];
+    while (i < toks.length) {
+      const k = kind(toks[i]), last = kind(run[run.length - 1]), wordsOnly = run.every(w => kind(w) === 'W');
+      if (k === 'M' || k === 'H' || (k === 'W' && (wordsOnly || last === 'M')) || (k === 'D' && last === 'M')) run.push(toks[i++]); else break;
+    }
+    let total = 0, cur = 0, lastM = '';
+    run.forEach(w => {
+      const k = kind(w);
+      if (w === 'yüz') { cur = (cur || 1) * 100; lastM = w; }
+      else if (w === 'bin') { total += (cur || 1) * 1000; cur = 0; lastM = w; }
+      else if (k === 'H') { if (lastM === 'bin') total += 500; else if (lastM === 'yüz') cur += 50; else cur += 0.5; } // "bin buçuk" = 1500
+      else { cur += k === 'D' ? +w : ASST_NUM[w]; lastM = ''; }
+    });
+    out.push(String(total + cur));
+  }
+  return out.join(' ');
+}
 function asstNormalize(text) {
   let t = String(text).toLocaleLowerCase('tr-TR').replace(/[’`´]/g, "'").replace(/₺/g, ' lira ');
-  t = t.replace(/(\d)\.(\d{3})(?!\d)/g, '$1$2').replace(/(\d),(\d)/g, '$1.$2'); // 1.500 → 1500, 2,5 → 2.5
-  const W = Object.keys(ASST_NUM).concat('yüz', 'bin', 'buçuk').join('|');
-  t = t.replace(new RegExp(`${NB}(?:(?:${W})${NA}\\s*)+`, 'gu'), m => {
-    let total = 0, cur = 0;
-    m.trim().split(/\s+/).forEach(w => {
-      if (w === 'yüz') cur = (cur || 1) * 100;
-      else if (w === 'bin') { total += (cur || 1) * 1000; cur = 0; }
-      else if (w === 'buçuk') cur += 0.5;
-      else cur += ASST_NUM[w];
-    });
-    return ' ' + (total + cur) + ' ';
-  });
-  // Birim fiyat işaretleri "@" olur: "25 liradan", "25'ten", "tanesi 25"
-  t = t.replace(new RegExp(`(\\d)\\s*(?:lira|tl)'?(?:dan|den|ya|ye)${NA}`, 'gu'), '$1 @');
-  t = t.replace(new RegExp(`(\\d)'?(?:dan|den|tan|ten)${NA}`, 'gu'), '$1 @');
+  t = t.replace(/(\d)\.(?=\d{3}(?!\d))/g, '$1').replace(/(\d),(\d)/g, '$1.$2'); // 1.000.000 → 1000000, 2,5 → 2.5
+  // Birim fiyat işaretleri "@" olur: "25 liradan", "25'ten", "yirmi beşten", "tanesi 25"
+  const priceMarks = x => x
+    .replace(new RegExp(`(\\d)\\s*(?:lira|tl)'?(?:dan|den|ya|ye)${NA}`, 'gu'), '$1 @')
+    .replace(new RegExp(`(\\d)'?(?:dan|den|tan|ten)${NA}`, 'gu'), '$1 @');
+  t = priceMarks(t);
+  const W = Object.keys(ASST_NUM).filter(w => w !== 'on' && w !== 'bir').concat('yüz', 'bin').join('|'); // "ondan", "birden" başka anlam
+  t = t.replace(new RegExp(`${NB}(${W})'?(?:dan|den|tan|ten)${NA}`, 'gu'), '$1 @');
+  t = t.replace(/[^\p{L}\d.'@ ]+/gu, ' ').replace(/\s+/g, ' ').trim();
+  t = priceMarks(asstJoinNumbers(t));
   t = t.replace(new RegExp(`${NB}(?:tanesi|tanesini|kilosu|kilosunu|kasası|kasasını|adedi)\\s+(\\d+(?:\\.\\d+)?)`, 'gu'), '$1 @');
-  return t.replace(/[^\p{L}\d.'@ ]+/gu, ' ').replace(/\s+/g, ' ').trim();
+  return t.replace(/\s+/g, ' ').trim();
 }
 // Metinde geçen en uzun bilinen adı bulur ("halil'e", "halilden", "halil kardeşi'nin").
 function asstFindName(t, names) {
@@ -92,8 +111,13 @@ function parseCommand(text, ctx) {
     cur = { nums: [], unit: '', words: [] };
   };
   // Kalem; ürün kelimesi ve iki sayı (miktar, fiyat) birikince kapanır. Fiyatsız kalemin fiyatı formda son fiyattan gelir.
-  t.split(' ').forEach(tok => {
-    if (/^\d+(?:\.\d+)?$/.test(tok)) { cur.nums.push(+tok); if (cur.nums.length > 2) cur.nums.shift(); if (cur.nums.length === 2 && cur.words.length) close(); return; }
+  const toks = t.split(' ');
+  toks.forEach((tok, i) => {
+    if (/^\d+(?:\.\d+)?$/.test(tok)) {
+      // "10 kasa marul 2 kasa lahana": birimli yeni miktar, fiyatsız önceki kalemi kapatır
+      if (cur.nums.length === 1 && cur.words.length && ASST_UNITS[toks[i + 1]]) close();
+      cur.nums.push(+tok); if (cur.nums.length > 2) cur.nums.shift(); if (cur.nums.length === 2 && cur.words.length) close(); return;
+    }
     if (ASST_UNITS[tok]) { cur.unit = ASST_UNITS[tok]; return; }
     if (!ASST_FILLER.has(tok) && /^\p{L}+$/u.test(tok)) cur.words.push(tok);
   });
@@ -116,7 +140,25 @@ function parseCommand(text, ctx) {
 }
 
 // ---------------- Arayüz ----------------
-function asstSay(html) { const el = document.getElementById('asst-out'); el.innerHTML = html; el.classList.remove('hidden'); }
+let asstVoiceTurn = false; // komut mikrofondan geldiyse cevap sesli okunur
+function asstSay(html) {
+  const el = document.getElementById('asst-out'); el.innerHTML = html; el.classList.remove('hidden');
+  if (asstVoiceTurn) asstSpeak(asstSpeechText(html));
+}
+// Ekrandaki cevabı okunacak metne çevirir: "₺9.570,00" → "9.570 lira", "−" → "eksi". Saf fonksiyon.
+function asstSpeechText(html) {
+  return String(html).replace(/<br\s*\/?>/gi, '. ').replace(/<[^>]+>/g, '')
+    .replace(/[+−-]?₺([\d.]+),(\d{2})/g, (m, n, k) => (m[0] === '−' || m[0] === '-' ? 'eksi ' : '') + n + ' lira' + (k === '00' ? '' : ' ' + (+k) + ' kuruş'))
+    .replace(/ − /g, ' eksi ').replace(/ = /g, ' eşittir ').replace(/[·•]/g, ', ')
+    .replace(/[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/gu, '').replace(/\s+/g, ' ').trim();
+}
+function asstSpeak(text) {
+  if (!text || !window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
+  try { speechSynthesis.cancel(); } catch (e) {}
+  const u = new SpeechSynthesisUtterance(text), v = speechSynthesis.getVoices().find(x => /^tr/i.test(x.lang));
+  u.lang = 'tr-TR'; u.rate = 1.05; if (v) u.voice = v;
+  try { speechSynthesis.speak(u); } catch (e) {} // okuma olmasa da asistan çalışmaya devam eder
+}
 function asstCtx() {
   const uniq = a => [...new Map(a.filter(Boolean).map(x => [fk(x), x.trim()])).values()];
   return {
@@ -220,15 +262,82 @@ function asstReport(cmd) {
   if (cmd.metric === 'collected') return `${label} tahsilat: <b>${formatMoney(sum(sales.flatMap(r => r.payments).filter(p => inR(p.date)), p => p.amount))}</b>`;
   return `${label} satış: <b>${formatMoney(S)}</b> (${sales.filter(r => inR(r.date)).length} satış)`;
 }
-// Sesle söyleme: tarayıcı destekliyorsa doğrudan, yoksa klavyedeki mikrofon
+// ---------------- Sesle söyleme (iPhone uyumlu) ----------------
+// iPhone ara sonuçları birikimli verir ("kasada", "kasada ne", ...): parçalar tekrar etmeden birleşir.
+function asstMergeText(acc, next) {
+  acc = String(acc || '').trim(); next = String(next || '').trim();
+  if (!acc) return next;
+  if (!next) return acc;
+  const fa = asstFold(acc), fn = asstFold(next);
+  if (fn.startsWith(fa)) return next;        // yeni parça öncekini içeriyor
+  if (fa.includes(fn)) return acc;           // bu parça zaten var
+  return acc + ' ' + next;
+}
+// Birden fazla tahmin gelirse bilinen müşteri/ürün adlarıyla en iyi anlaşılanı seç.
+function asstBest(text, alts) {
+  if (!alts || alts.length < 2) return text;
+  const ctx = asstCtx(), known = n => n && [...ctx.customers, ...ctx.suppliers].some(c => fk(c) === fk(n));
+  const score = t => { const c = parseCommand(t, ctx); return (c.type !== 'unknown') * 2 + known(c.party) + ((c.items || []).filter(i => ctx.products.some(p => fk(p) === fk(i.prod))).length > 0); };
+  return [text, ...alts].reduce((b, t) => score(t) > score(b) ? t : b, text);
+}
+// iPhone sesli okumaya ilk kez yalnız bir dokunuşla izin verir. Kilit, mikrofon dışında bir yere ilk dokunuşta açılır:
+// mikrofona basarken okuma başlatılırsa iPhone sesi hoparlöre ayırır ve mikrofon boş dinler.
+(function () {
+  const unlock = e => {
+    if (e.target.closest && e.target.closest('#asst-mic')) return;
+    try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch (err) {}
+    document.removeEventListener('pointerup', unlock, true);
+  };
+  if (typeof window !== 'undefined' && window.speechSynthesis) document.addEventListener('pointerup', unlock, true);
+})();
+const ASST_SILENCE_MS = 2500, ASST_MAX_MS = 30000, ASST_NO_AUDIO_MS = 7000;
+const ASST_NO_AUDIO_HELP = 'Mikrofondan ses gelmiyor. iPhone’da Ayarlar → Genel → Klavye → <b>Dikte</b> açık olmalı ve bu uygulamaya mikrofon izni verilmiş olmalı. Ana ekrandan açtıysanız Safari’den de deneyin; ya da kutuya dokunup klavyedeki 🎤 ile söyleyin.';
+let asstRec = null;
 function asstListen() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition, inp = document.getElementById('asst-input');
-  const fallback = () => { asstSay('Bu ekranda doğrudan ses tanıma açılamadı. Kutuya dokunup klavyedeki 🎤 tuşuyla söyleyin, sonra gönderin.'); inp.focus(); };
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition, inp = document.getElementById('asst-input'), btn = document.getElementById('asst-mic');
+  if (asstRec) { asstRec.stop(); return; }                 // dinlerken tekrar basınca bitir ve gönder
+  const fallback = msg => { asstSay(msg || 'Bu ekranda doğrudan ses tanıma açılamadı. Kutuya dokunup klavyedeki 🎤 tuşuyla söyleyin, sonra gönderin.'); inp.focus(); };
   if (!SR) return fallback();
-  const r = new SR(); r.lang = 'tr-TR'; r.interimResults = false; r.maxAlternatives = 1;
-  const btn = document.getElementById('asst-mic'); btn.classList.add('animate-pulse');
-  r.onresult = e => { inp.value = e.results[0][0].transcript; runAssistant(); };
-  r.onerror = e => { if (e.error === 'no-speech') asstSay('Ses duyulmadı, tekrar deneyin.'); else fallback(); };
-  r.onend = () => btn.classList.remove('animate-pulse');
-  try { r.start(); asstSay('Dinliyorum…'); } catch (e) { btn.classList.remove('animate-pulse'); fallback(); }
+  try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {} // okuma sürerken mikrofon ses alamaz
+  const r = new SR(); r.lang = 'tr-TR'; r.continuous = true; r.interimResults = true; r.maxAlternatives = 3;
+  let finalText = '', interim = '', alts = [], heard = false, sent = false, failed = false, silenceT = 0, noAudioT = 0, maxT = 0;
+  const timers = () => [silenceT, noAudioT, maxT].forEach(clearTimeout);
+  const live = on => {
+    btn.classList.toggle('mic-live', on); btn.classList.toggle('bg-rose-600', on); btn.classList.toggle('bg-emerald-600', !on);
+    btn.setAttribute('aria-label', on ? 'Dinlemeyi bitir ve gönder' : 'Sesle söyle');
+  };
+  const send = () => {
+    if (sent) return; sent = true; timers();
+    const text = asstMergeText(finalText, interim);
+    if (failed) return;
+    if (!text) { if (!heard) asstSay('Ses duyulmadı. Mikrofona basıp konuşun, bitirince susun.'); return; }
+    inp.value = asstBest(text, alts);
+    asstVoiceTurn = true;
+    try { runAssistant(); } finally { asstVoiceTurn = false; }
+  };
+  r.onresult = e => {
+    heard = true; clearTimeout(noAudioT);
+    for (let i = e.resultIndex || 0; i < e.results.length; i++) {
+      const res = e.results[i];
+      if (res.isFinal) { finalText = asstMergeText(finalText, res[0].transcript); alts = [...res].map(a => a.transcript).filter(Boolean); }
+    }
+    // Ara sonuçlar her seferinde baştan kurulur: bazı iPhone sürümleri "bitti" işaretini hiç göndermez
+    interim = [...e.results].filter(x => !x.isFinal).reduce((acc, x) => asstMergeText(acc, x[0].transcript), '');
+    inp.value = asstMergeText(finalText, interim);
+    clearTimeout(silenceT); silenceT = setTimeout(() => r.stop(), ASST_SILENCE_MS); // susunca gönder
+  };
+  r.onerror = e => {
+    if (e.error === 'aborted' || e.error === 'no-speech') return;
+    failed = true;
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') fallback('Mikrofon ya da konuşma tanıma izni yok. ' + ASST_NO_AUDIO_HELP);
+    else if (e.error === 'audio-capture') fallback('Mikrofon başka bir uygulama tarafından kullanılıyor olabilir. Kapatıp tekrar deneyin.');
+    else fallback();
+  };
+  r.onend = () => { asstRec = null; live(false); send(); };
+  try {
+    r.start(); asstRec = r; inp.value = ''; live(true);
+    asstSay('Dinliyorum… Bitirince susun ya da mikrofona tekrar basın.');
+    noAudioT = setTimeout(() => { if (!heard) { failed = true; r.stop(); asstSay(ASST_NO_AUDIO_HELP); } }, ASST_NO_AUDIO_MS);
+    maxT = setTimeout(() => r.stop(), ASST_MAX_MS);
+  } catch (e) { asstRec = null; live(false); fallback(); }
 }
