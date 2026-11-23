@@ -1,5 +1,5 @@
 // Arayüz akış testi (bulut gerekmez). Kullanım: node scripts/ui-test.js
-const { chromium } = require('playwright');
+const { chromium, devices } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 const seed = JSON.parse(fs.readFileSync(path.join(__dirname, 'seed.json'), 'utf8'));
 const dir = path.join(__dirname, '..', 'public');
@@ -174,6 +174,27 @@ async function run() {
     await P.waitForFunction(() => !document.documentElement.dataset.theme, null, { timeout: 3000 }).catch(() => {});
     check(await P.evaluate(() => !document.documentElement.dataset.theme), 'Telefona göre: gece moduna geçince kokpit');
     await P.evaluate(() => setTheme('dark'));
+
+    console.log('8) Ses: iPhone\'da yazı gelmezse klavye diktesi; "bitti" işareti olmadan da gönderim');
+    const mock = mode => { window.LX_NO_AUDIO_MS = 700; window.__sr = { made: 0, cont: [] };
+      window.SpeechRecognition = function () { window.__sr.made++; const r = this;
+        r.start = () => { window.__sr.cont.push(r.continuous); setTimeout(() => r.onaudiostart && r.onaudiostart(), 50);
+          if (mode === 'nofinal') setTimeout(() => r.onresult({ resultIndex: 0, results: [Object.assign([{ transcript: '103 HGS 750' }], { isFinal: false })] }), 150); };
+        r.stop = () => setTimeout(() => r.onend && r.onend(), 10); }; };
+    const vp = async (opts, mode) => { const p = await b.newPage(opts); p.errs = []; p.on('pageerror', e => p.errs.push(e.message));
+      await p.addInitScript(s => { localStorage.clear(); localStorage.setItem('FRIGO_FILO_PRO_V1', s); }, JSON.stringify(seed)); await p.addInitScript(mock, mode);
+      await p.goto('http://localhost:8812/', { waitUntil: 'load' }); await p.waitForTimeout(300); return p; };
+    const I = await vp({ ...devices['iPhone 13'] }, 'deaf');
+    await I.evaluate(() => asstListen()); await I.waitForTimeout(1300);
+    check((await I.textContent('#asst-out')).includes('yazıya dönmedi') && await I.evaluate(() => window.__sr.cont[0] === false && +localStorage.getItem('LOJIX_DICTATE_UNTIL') > Date.now()), 'iPhone: yazı gelmeyince klavye diktesi, tek seferlik dinleme, tercih hatırlandı');
+    await I.fill('#asst-input', '102 lastik 5000'); await I.waitForTimeout(3000);
+    check(await visible(I, 'expenseModal') && await I.inputValue('#expAmount') === '5000' && await I.inputValue('#expVehicle') === 'V1', 'Dikte bitince susunca gider formu kendiliğinden doldu');
+    await I.evaluate(() => closeModal('expenseModal')); await I.evaluate(() => asstListen());
+    check(await I.evaluate(() => window.__sr.made === 1 && document.activeElement.id === 'asst-input'), 'Sonraki basışta beklemeden doğrudan klavye diktesi');
+    const W = await vp({ viewport: { width: 1280, height: 900 } }, 'nofinal');
+    await W.evaluate(() => asstListen()); await W.waitForTimeout(3300);
+    check(await W.evaluate(() => window.__sr.cont[0] === true) && await visible(W, 'expenseModal') && await W.inputValue('#expAmount') === '750', 'Masaüstü: "bitti" işareti olmadan susunca gider formu doldu');
+    for (const p of [I, W]) check(!p.errs.length, 'Ses testinde sayfa hatası yok ' + p.errs.join(' | '));
 
     for (const p of [E, P]) check(!p.errs.length, 'Sayfa hatası yok ' + p.errs.join(' | '));
   } catch (e) { console.error(e); fails++; }

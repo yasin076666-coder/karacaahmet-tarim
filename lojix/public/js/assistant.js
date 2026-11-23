@@ -284,6 +284,7 @@ function lxSummary(c) {
   return parts.filter(Boolean).map(esc).join(' · ');
 }
 function runAssistant(alts) {
+  lxDictating = false; clearTimeout(lxDictT);   // elle ya da dikteyle gönderildi: sayaç iptal
   const inp = $('asst-input'), text = inp.value.trim();
   if (!text) return asstSay(lxHelp());
   // Ses tanıma birden fazla seçenek verdiyse anlaşılan ilkini al
@@ -355,16 +356,84 @@ function asstReport(c) {
   if (c.metric === 'profit') return `${label}${who}: navlun ${fmtTL(r.gross)} − kesinti ${fmtTL(r.cut)} − yakıt ${fmtTL(r.fuel)} − gider ${fmtTL(r.exp)} = net <b class="${netCls(r.net)}">${fmtTL(r.net)}</b>`;
   return `${label}${who}: ${r.n} sefer · navlun ${fmtTL(r.gross)} · yakıt ${fmtTL(r.fuel)} · gider ${fmtTL(r.exp)} · net <b class="${netCls(r.net)}">${fmtTL(r.net)}</b>`;
 }
-// Sesle söyleme: tarayıcı destekliyorsa doğrudan, yoksa klavyedeki mikrofon
+// ---------------- Sesle söyleme (iPhone uyumlu; Karacaahmet'teki çalışan yapı) ----------------
+// Sürekli dinler, susunca gönderir; iPhone 'bitti' işareti göndermese de çalışır. Mikrofon açılıp yazı gelmezse
+// (iPhone'da ana ekrandan açılan uygulamada olur) klavye diktesine geçer ve bu tercih 14 gün hatırlanır.
+const LX_IOS = typeof navigator !== 'undefined' && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+const LX_SILENCE_MS = 2500, LX_MAX_MS = 30000, LX_NO_AUDIO_MS = (typeof window !== 'undefined' && window.LX_NO_AUDIO_MS) || (LX_IOS ? 5000 : 7000);
+const LX_DICTATE_KEY = 'LOJIX_DICTATE_UNTIL', LX_DICTATE_DAYS = 14;
+let asstRec = null, lxDictating = false, lxDictT = 0;
+// iPhone ara sonuçları birikimli verir ("609", "609 antalya", ...): parçalar tekrar etmeden birleşir.
+function lxMergeText(acc, next) {
+  acc = String(acc || '').trim(); next = String(next || '').trim();
+  if (!acc) return next; if (!next) return acc;
+  const fa = lxFold(acc), fn = lxFold(next);
+  if (fn.startsWith(fa)) return next;
+  if (fa.includes(fn)) return acc;
+  return acc + ' ' + next;
+}
+const lxDictateRemembered = () => { try { return +(localStorage.getItem(LX_DICTATE_KEY) || 0) > Date.now(); } catch (e) { return false; } };
+function lxRememberDictate(on) { try { on ? localStorage.setItem(LX_DICTATE_KEY, String(Date.now() + LX_DICTATE_DAYS * 864e5)) : localStorage.removeItem(LX_DICTATE_KEY); } catch (e) {} }
+// Klavye diktesi: kutu açılır, kişi klavyedeki 🎤 ile söyler; susunca kendiliğinden gönderilir.
+function lxDictate(msg) {
+  openSheet('quickSheet');
+  const inp = $('asst-input'); lxDictating = true; clearTimeout(lxDictT); inp.value = ''; inp.focus();
+  asstSay((msg ? msg + '<br>' : '') + 'Kutuya dokunup klavyedeki <b>🎤</b> tuşuyla söyleyin; bitirince <b>2,5 sn susun</b>, kendiliğinden gönderilir. '
+    + '<button type="button" class="underline font-semibold" onclick="lxRememberDictate(false);asstListen()">Doğrudan dinlemeyi yeniden dene</button>');
+}
+if (typeof document !== 'undefined') document.addEventListener('input', e => {
+  if (!lxDictating || !e.target || e.target.id !== 'asst-input') return;
+  clearTimeout(lxDictT);
+  lxDictT = setTimeout(() => { if (lxDictating && $('asst-input').value.trim()) runAssistant(); }, LX_SILENCE_MS);
+});
 function asstListen() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition, inp = $('asst-input'), btn = $('asst-mic');
-  openSheet('quickSheet');
-  const fallback = () => { asstSay('Bu ekranda doğrudan ses tanıma açılamadı. Kutuya dokunup klavyedeki mikrofon tuşuyla söyleyin, sonra gönderin.'); inp.focus(); };
-  if (!SR) return fallback();
-  const r = new SR(); r.lang = 'tr-TR'; r.interimResults = true; r.maxAlternatives = 3;
-  btn.classList.add('listening'); btn.setAttribute('aria-pressed', 'true');
-  r.onresult = e => { const res = e.results[e.results.length - 1]; inp.value = res[0].transcript; if (res.isFinal) runAssistant([...res].slice(1).map(x => x.transcript)); };
-  r.onerror = e => { if (e.error === 'no-speech') asstSay('Ses duyulmadı, tekrar deneyin.'); else if (e.error === 'not-allowed') asstSay('Mikrofon izni verilmedi. Telefon ayarlarından tarayıcıya mikrofon izni verin ya da klavyedeki mikrofonu kullanın.'); else fallback(); };
-  r.onend = () => { btn.classList.remove('listening'); btn.setAttribute('aria-pressed', 'false'); };
-  try { r.start(); asstSay('Dinliyorum… Kaydı söyleyin.'); } catch (e) { btn.classList.remove('listening'); fallback(); }
+  if (asstRec) { asstRec.stop(); return; }                  // dinlerken tekrar basınca bitir ve gönder
+  if (!SR) return lxDictate('Bu tarayıcıda doğrudan ses tanıma yok.');
+  if (lxDictateRemembered()) return lxDictate();            // bu telefonda doğrudan dinleme çalışmadı: hemen klavye diktesi
+  openSheet('quickSheet'); lxDictating = false;
+  // iPhone'un tanıyıcısı sürekli kipte takılabiliyor: orada tek seferlik dinleme
+  const r = new SR(); r.lang = 'tr-TR'; r.continuous = !LX_IOS; r.interimResults = true; r.maxAlternatives = 3;
+  let finalText = '', interim = '', alts = [], heard = false, audio = false, sent = false, failed = false, silenceT = 0, noAudioT = 0, maxT = 0;
+  const timers = () => [silenceT, noAudioT, maxT].forEach(clearTimeout);
+  const live = on => { btn.classList.toggle('listening', on); btn.setAttribute('aria-pressed', String(on)); btn.setAttribute('aria-label', on ? 'Dinlemeyi bitir ve gönder' : 'Sesle söyle'); };
+  const send = () => {
+    if (sent) return; sent = true; timers();
+    const text = lxMergeText(finalText, interim);
+    if (failed) return;
+    if (!text) { if (!heard) asstSay('Ses duyulmadı. Mikrofona basıp konuşun, bitirince susun.'); return; }
+    inp.value = text; runAssistant(alts.filter(a => a && a !== text));
+  };
+  r.onaudiostart = () => { audio = true; };
+  r.onresult = e => {
+    heard = true; clearTimeout(noAudioT);
+    for (let i = e.resultIndex || 0; i < e.results.length; i++) {
+      const res = e.results[i];
+      if (res.isFinal) { finalText = lxMergeText(finalText, res[0].transcript); alts = [...res].map(a => a.transcript); }
+    }
+    // Ara sonuçlar her seferinde baştan kurulur: bazı iPhone sürümleri "bitti" işaretini hiç göndermez
+    interim = [...e.results].filter(x => !x.isFinal).reduce((acc, x) => lxMergeText(acc, x[0].transcript), '');
+    inp.value = lxMergeText(finalText, interim);
+    clearTimeout(silenceT); silenceT = setTimeout(() => r.stop(), LX_SILENCE_MS);   // susunca gönder
+  };
+  r.onerror = e => {
+    if (e.error === 'aborted' || e.error === 'no-speech') return;
+    failed = true;
+    if (e.error === 'service-not-allowed') { lxRememberDictate(true); lxDictate('Bu ekranda doğrudan ses tanıma kapalı (iPhone’da ana ekrandan açılan uygulamalarda olur).'); }
+    else if (e.error === 'not-allowed') lxDictate('Mikrofon izni verilmedi. Telefon ayarlarından tarayıcıya mikrofon izni verin.');
+    else if (e.error === 'audio-capture') asstSay('Mikrofon başka bir uygulama tarafından kullanılıyor olabilir. Kapatıp tekrar deneyin.');
+    else lxDictate();
+  };
+  r.onend = () => { asstRec = null; live(false); send(); };
+  try {
+    r.start(); asstRec = r; inp.value = ''; live(true);
+    asstSay('Dinliyorum… Bitirince susun ya da mikrofona tekrar basın.');
+    noAudioT = setTimeout(() => {
+      if (heard) return;
+      failed = true; try { r.stop(); } catch (e) {}
+      if (audio) { lxRememberDictate(true); lxDictate('Mikrofon açıldı ama söylediğiniz yazıya dönmedi; bu telefonda klavye diktesi kullanılacak.'); }
+      else asstSay('Mikrofondan ses gelmiyor. iPhone’da Ayarlar → Genel → Klavye → <b>Dikte</b> açık olmalı ve tarayıcıya mikrofon izni verilmiş olmalı.');
+    }, LX_NO_AUDIO_MS);
+    maxT = setTimeout(() => r.stop(), LX_MAX_MS);
+  } catch (e) { asstRec = null; live(false); lxDictate(); }
 }
