@@ -266,7 +266,7 @@
     user = u || null;
     ui(!!user);
     if (!user) { detach(); setRole('writer'); say('Giriş yapılmadı. Kayıtlar yalnızca bu cihazda tutuluyor.'); return; }
-    if (user.uid === window.LOJIX_OWNER) { setRole('writer', { name: 'Yasin', role: 'admin' }); return attach(); }
+    if (user.uid === window.LOJIX_OWNER) { setRole('writer', { name: 'Yasin ÖZTÜRK', role: 'admin' }); return attach(); }
     let p = null;
     try { const d = await db.collection('fleets').doc(FLEET).collection('users').doc((user.email || '').toLowerCase()).get(); p = d.exists ? d.data() : null; } catch (e) {}
     if (!p || !ROLE[p.role]) { detach(); setRole('none'); return say('Bu hesabın Lojix\'e erişim izni yok. Yöneticiden (Yasin) sizi Kullanıcılar listesine eklemesini isteyin.', 'error'); }
