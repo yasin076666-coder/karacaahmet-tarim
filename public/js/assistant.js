@@ -170,6 +170,7 @@ function asstCtx() {
 const ASST_HELP = `<b>Şöyle söyleyebilirsiniz:</b><br>• Halil'e 20 adet kıvırcık 25 liradan sattım, 200 peşin aldım<br>• Halden 30 kasa marul 18'den aldım, veresiye<br>• 500 lira mazot · dün yemek 250 lira kartla<br>• Halil 1000 lira ödedi<br>• Bugün ne kadar sattım? · Bu ay kâr ne kadar? · Halil'in borcu ne kadar? · Kasada ne kadar var?`;
 
 function runAssistant() {
+  asstDictating = false; clearTimeout(asstDictT);   // elle gönderildiyse dikte sayacı iptal
   const inp = document.getElementById('asst-input'), text = inp.value.trim();
   if (!text) return asstSay(ASST_HELP);
   const cmd = parseCommand(text, asstCtx());
@@ -290,17 +291,44 @@ function asstBest(text, alts) {
   };
   if (typeof window !== 'undefined' && window.speechSynthesis) document.addEventListener('pointerup', unlock, true);
 })();
-const ASST_SILENCE_MS = 2500, ASST_MAX_MS = 30000, ASST_NO_AUDIO_MS = 7000;
+const ASST_IOS = typeof navigator !== 'undefined' && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+const ASST_SILENCE_MS = 2500, ASST_MAX_MS = 30000, ASST_NO_AUDIO_MS = (typeof window !== 'undefined' && window.ASST_NO_AUDIO_MS) || (ASST_IOS ? 5000 : 7000);
+// Mikrofon açılıp yazı gelmezse (ör. iPhone'da ana ekrandan açılan uygulama) klavye diktesine geçilir ve bu tercih 14 gün hatırlanır.
+const ASST_DICTATE_KEY = 'asst_dictate_until', ASST_DICTATE_DAYS = 14;
+let asstDictating = false, asstDictT = 0;
+function asstDictateRemembered() { try { return +(localStorage.getItem(ASST_DICTATE_KEY) || 0) > Date.now(); } catch (e) { return false; } }
+function asstRememberDictate(on) { try { on ? localStorage.setItem(ASST_DICTATE_KEY, String(Date.now() + ASST_DICTATE_DAYS * 864e5)) : localStorage.removeItem(ASST_DICTATE_KEY); } catch (e) {} }
+// Klavye diktesi: kutu açılır, kişi klavyedeki 🎤 ile söyler; susunca kendiliğinden gönderilir.
+function asstDictate(msg) {
+  const inp = document.getElementById('asst-input');
+  asstDictating = true; clearTimeout(asstDictT); inp.value = ''; inp.focus();
+  asstSay((msg ? msg + '<br>' : '') + 'Kutuya dokunup klavyedeki <b>🎤</b> tuşuyla söyleyin; bitirince <b>2,5 sn susun</b>, kendiliğinden gönderilir.'
+    + ' <button type="button" class="underline font-semibold" onclick="asstRememberDictate(false);asstListen()">Doğrudan dinlemeyi yeniden dene</button>');
+}
+if (typeof document !== 'undefined') document.addEventListener('input', e => {
+  if (!asstDictating || !e.target || e.target.id !== 'asst-input') return;
+  clearTimeout(asstDictT);
+  asstDictT = setTimeout(() => {
+    const inp = document.getElementById('asst-input');
+    if (!asstDictating || !inp.value.trim()) return;
+    asstDictating = false; asstVoiceTurn = true;
+    try { runAssistant(); } finally { asstVoiceTurn = false; }
+  }, ASST_SILENCE_MS);
+});
 const ASST_NO_AUDIO_HELP = 'Mikrofondan ses gelmiyor. iPhone’da Ayarlar → Genel → Klavye → <b>Dikte</b> açık olmalı ve bu uygulamaya mikrofon izni verilmiş olmalı. Ana ekrandan açtıysanız Safari’den de deneyin; ya da kutuya dokunup klavyedeki 🎤 ile söyleyin.';
 let asstRec = null;
 function asstListen() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition, inp = document.getElementById('asst-input'), btn = document.getElementById('asst-mic');
   if (asstRec) { asstRec.stop(); return; }                 // dinlerken tekrar basınca bitir ve gönder
-  const fallback = msg => { asstSay(msg || 'Bu ekranda doğrudan ses tanıma açılamadı. Kutuya dokunup klavyedeki 🎤 tuşuyla söyleyin, sonra gönderin.'); inp.focus(); };
-  if (!SR) return fallback();
+  const fallback = msg => asstDictate(msg);
+  if (!SR) return asstDictate('Bu tarayıcıda doğrudan ses tanıma yok.');
+  if (asstDictateRemembered()) return asstDictate();       // bu telefonda doğrudan dinleme çalışmadı: hemen klavye diktesi
+  asstDictating = false;
   try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {} // okuma sürerken mikrofon ses alamaz
-  const r = new SR(); r.lang = 'tr-TR'; r.continuous = true; r.interimResults = true; r.maxAlternatives = 3;
-  let finalText = '', interim = '', alts = [], heard = false, sent = false, failed = false, silenceT = 0, noAudioT = 0, maxT = 0;
+  // iPhone'un tanıyıcısı sürekli kipte takılabiliyor: orada tek seferlik dinleme
+  const r = new SR(); r.lang = 'tr-TR'; r.continuous = !ASST_IOS; r.interimResults = true; r.maxAlternatives = 3;
+  let finalText = '', interim = '', alts = [], heard = false, audio = false, sent = false, failed = false, silenceT = 0, noAudioT = 0, maxT = 0;
+  r.onaudiostart = () => { audio = true; };
   const timers = () => [silenceT, noAudioT, maxT].forEach(clearTimeout);
   const live = on => {
     btn.classList.toggle('mic-live', on); btn.classList.toggle('bg-rose-600', on); btn.classList.toggle('bg-emerald-600', !on);
@@ -329,7 +357,8 @@ function asstListen() {
   r.onerror = e => {
     if (e.error === 'aborted' || e.error === 'no-speech') return;
     failed = true;
-    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') fallback('Mikrofon ya da konuşma tanıma izni yok. ' + ASST_NO_AUDIO_HELP);
+    if (e.error === 'service-not-allowed') { asstRememberDictate(true); fallback('Bu ekranda doğrudan ses tanıma kapalı (iPhone’da ana ekrandan açılan uygulamalarda olur).'); }
+    else if (e.error === 'not-allowed') fallback('Mikrofon ya da konuşma tanıma izni yok. ' + ASST_NO_AUDIO_HELP);
     else if (e.error === 'audio-capture') fallback('Mikrofon başka bir uygulama tarafından kullanılıyor olabilir. Kapatıp tekrar deneyin.');
     else fallback();
   };
@@ -337,7 +366,13 @@ function asstListen() {
   try {
     r.start(); asstRec = r; inp.value = ''; live(true);
     asstSay('Dinliyorum… Bitirince susun ya da mikrofona tekrar basın.');
-    noAudioT = setTimeout(() => { if (!heard) { failed = true; r.stop(); asstSay(ASST_NO_AUDIO_HELP); } }, ASST_NO_AUDIO_MS);
+    noAudioT = setTimeout(() => {
+      if (heard) return;
+      failed = true; try { r.stop(); } catch (e) {}
+      // Mikrofon açıldı ama yazı gelmedi: tanıma bu ekranda çalışmıyor → klavye diktesi, tercih hatırlanır
+      if (audio) { asstRememberDictate(true); asstDictate('Mikrofon açıldı ama söylediğiniz yazıya dönmedi; bu telefonda klavye diktesi kullanılacak.'); }
+      else asstSay(ASST_NO_AUDIO_HELP);
+    }, ASST_NO_AUDIO_MS);
     maxT = setTimeout(() => r.stop(), ASST_MAX_MS);
   } catch (e) { asstRec = null; live(false); fallback(); }
 }
