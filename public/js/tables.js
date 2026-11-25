@@ -78,7 +78,7 @@ function periodLabel() {
 }
 function buildMonthly() {
   const mo = {}, M = k => mo[k] || (mo[k] = { s: 0, p: 0, g: 0, t: 0 });
-  sales.forEach(r => { M(r.date.slice(0, 7)).s += r.total; r.payments.forEach(p => { M(p.date.slice(0, 7)).t += p.amount; }); });
+  sales.forEach(r => { M(r.date.slice(0, 7)).s += r.total; M(r.date.slice(0, 7)).g += giftCost(r); r.payments.forEach(p => { if (p.kind === 'kesinti') M(p.date.slice(0, 7)).g += p.amount; else M(p.date.slice(0, 7)).t += p.amount; }); });
   purchases.forEach(r => { M(r.date.slice(0, 7)).p += r.total; });
   expenses.forEach(e => expEntries(e).forEach(x => { M(x.date.slice(0, 7)).g += x.amount; }));
   const keys = Object.keys(mo).sort().reverse(), T = { s: 0, p: 0, g: 0, t: 0 };
@@ -91,7 +91,7 @@ function buildMonthly() {
 function buildProducts() {
   const pr = {}, P = (n, u) => pr[fk(n) + '|' + u] || (pr[fk(n) + '|' + u] = { name: n.trim(), unit: u, sq: 0, st: 0, bq: 0, bt: 0 });
   const it = i => i.total || round2(i.qty * i.price);
-  sales.filter(r => dateFilterPass(r.date)).forEach(r => r.items.forEach(i => { const o = P(i.prod, i.unit); o.sq += i.qty; o.st += it(i); }));
+  sales.filter(r => dateFilterPass(r.date)).forEach(r => r.items.forEach(i => { if (i.gift) return; const o = P(i.prod, i.unit); o.sq += i.qty; o.st += it(i); }));
   purchases.filter(r => dateFilterPass(r.date)).forEach(r => r.items.forEach(i => { const o = P(i.prod, i.unit); o.bq += i.qty; o.bt += it(i); }));
   const list = Object.values(pr).sort((a, b) => b.st - a.st);
   let ts = 0, tk = 0;
@@ -127,7 +127,7 @@ function buildMoves() {
 // Son 6 ayın satışı ve maliyeti (alış + gider), yan yana çubuk; aya dokununca ayrıntı.
 function monthTotals() {
   const mo = {}, M = k => mo[k] || (mo[k] = { s: 0, c: 0 });
-  sales.forEach(r => { M(r.date.slice(0, 7)).s += r.total; });
+  sales.forEach(r => { M(r.date.slice(0, 7)).s += r.total; M(r.date.slice(0, 7)).c += giftCost(r); discountsOf(r).forEach(p => { M(p.date.slice(0, 7)).c += p.amount; }); });
   purchases.forEach(r => { M(r.date.slice(0, 7)).c += r.total; });
   expenses.forEach(e => expEntries(e).forEach(x => { M(x.date.slice(0, 7)).c += x.amount; }));
   const t = getTodayString(), y = +t.slice(0, 4), m = +t.slice(5, 7), out = [];
@@ -162,7 +162,19 @@ function chartTip(i) {
   const k = round2(d.s - d.c);
   el.innerHTML = `<b>${MONTHS[+d.k.slice(5, 7) - 1]} ${d.k.slice(0, 4)}</b> · Satış ${formatMoney(d.s)} · Alış+Gider ${formatMoney(d.c)} · Net kâr <b>${(k >= 0 ? '+' : '−') + formatMoney(Math.abs(k))}</b>`;
 }
+// Hangi müşteriye ne kadar hediye ve kesinti (seçili dönem)
+function buildGifts() {
+  const m = {}, C = n => m[fk(n)] || (m[fk(n)] = { name: n.trim(), g: 0, d: 0, items: [] });
+  sales.forEach(r => {
+    if (dateFilterPass(r.date)) r.items.filter(i => i.gift).forEach(i => { const o = C(r.customer); o.g += i.cost || 0; o.items.push(`${i.prod} ${round2(i.qty)} ${i.unit}`); });
+    discountsOf(r).filter(p => dateFilterPass(p.date)).forEach(p => { C(r.customer).d += p.amount; });
+  });
+  const arr = Object.values(m).sort((a, b) => (b.g + b.d) - (a.g + a.d)); let G = 0, D = 0;
+  const rows = arr.map(o => { G += o.g; D += o.d; return [esc(o.name) + (o.items.length ? `<div class="text-[10px] text-slate-400">${esc(o.items.join(', '))}</div>` : ''), o.g ? formatMoney(o.g) : '-', o.d ? formatMoney(o.d) : '-']; });
+  return tbl(['Müşteri', 'Hediye (maliyet)', 'Kesinti'], rows, ['Toplam', formatMoney(G), formatMoney(D)]);
+}
 function renderTables() {
+  document.getElementById('tbl-gifts').innerHTML = buildGifts();
   document.getElementById('chart-monthly').innerHTML = buildChart();
   chartTip(Math.max(0, window.__chartData.map(d => d.s + d.c > 0).lastIndexOf(true))); // verisi olan son ay
   document.getElementById('tbl-period').textContent = periodLabel();

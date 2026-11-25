@@ -8,7 +8,8 @@ function normItems(items) {
     qty: num(it.qty),
     unit: String(it.unit || 'kg'),
     price: num(it.price),
-    total: num(it.total)
+    total: num(it.total),
+    ...(it.gift ? { gift: true, cost: num(it.cost) } : {})   // hediye: müşteriye borç yazılmaz, maliyeti gider
   }));
 }
 
@@ -77,12 +78,18 @@ function safeLoad(key) {
 // ================= ÖDEME GEÇMİŞİ & KART VERİSİ =================
 function normPay(arr, fallbackDate, paid) {
   let p = (Array.isArray(arr) ? arr : []).filter(x => x && typeof x === 'object').map(x => ({
-    id: safeId(x.id, 'PY'), date: validDate(x.date), amount: num(x.amount), note: String(x.note || '')
+    id: safeId(x.id, 'PY'), date: validDate(x.date), amount: num(x.amount), note: String(x.note || ''),
+    ...(x.kind === 'kesinti' ? { kind: 'kesinti' } : {})   // kesinti: borçtan düşer, kasaya girmez
   }));
   if (!p.length && paid > 0) p = [{ id: newId('PY'), date: fallbackDate, amount: round2(paid), note: 'Peşinat' }];
   return p;
 }
 function sumPay(p) { return round2(p.reduce((a, x) => a + x.amount, 0)); }
+// Kasaya giren kısım (kesintiler hariç)
+function cashPay(p) { return round2(p.reduce((a, x) => a + (x.kind === 'kesinti' ? 0 : x.amount), 0)); }
+function discountsOf(r) { return (r.payments || []).filter(x => x.kind === 'kesinti'); }
+function giftCost(r) { return round2((r.items || []).reduce((a, i) => a + (i.gift ? i.cost || 0 : 0), 0)); }
+const itemLabel = i => i.gift ? `${i.prod} (${i.qty} ${i.unit}, hediye)` : `${i.prod} (${i.qty} ${i.unit} × ${i.price}₺)`;
 function withPay(fn) {
   return function (x) {
     const r = fn(x);

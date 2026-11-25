@@ -107,7 +107,7 @@ function applyFilters() {
 
 // ================= ÇİZİM =================
 function render(fSales, fPurchases, fExpenses) {
-  let totalSales = 0, totalPurchases = 0, totalExpenses = 0;
+  let totalSales = 0, totalPurchases = 0;
   let totalReceivable = 0, totalDebt = 0;
 
   const customerBalances = {};
@@ -138,17 +138,13 @@ function render(fSales, fPurchases, fExpenses) {
   });
 
   fExpenses.forEach(e => {
-    totalExpenses += e.amount;
     expenseCats[e.category] = (expenseCats[e.category] || 0) + e.amount;
   });
 
-  const netProfit = totalSales - totalPurchases - totalExpenses;
 
   document.getElementById('stat-sales').textContent = formatMoney(totalSales);
   document.getElementById('stat-purchases').textContent = formatMoney(totalPurchases);
-  document.getElementById('stat-expenses').textContent = formatMoney(totalExpenses);
-  document.getElementById('stat-net-profit').textContent = (netProfit >= 0 ? '+' : '') + formatMoney(netProfit);
-  document.getElementById('stat-net-profit').className = `text-lg font-bold ${netProfit >= 0 ? 'text-emerald-700' : 'text-rose-600'}`;
+  // Giderler, kesinti, hediye ve net kâr renderExtras'ta (taksitli giderlerle birlikte) yazılır
   document.getElementById('stat-receivables').textContent = formatMoney(totalReceivable);
   document.getElementById('stat-debts').textContent = formatMoney(totalDebt);
 
@@ -167,7 +163,7 @@ function render(fSales, fPurchases, fExpenses) {
       const rem = Math.max(0, s.total - (s.paid || 0));
       const isDone = rem <= 0;
       const over = (s.paid || 0) > s.total ? ` (fazla: ${formatMoney(s.paid - s.total)})` : '';
-      const itemsDesc = s.items.map(it => `${esc(it.prod)} (${esc(it.qty)} ${esc(it.unit)} × ${esc(it.price)}₺)`).join(', ');
+      const itemsDesc = s.items.map(it => esc(itemLabel(it))).join(', ');
       const sid = esc(s.id);
       return `
         <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm space-y-2">

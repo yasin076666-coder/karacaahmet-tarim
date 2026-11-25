@@ -4,7 +4,7 @@ let cashSign = 1;
 // Nakit çıkışlar: tedarikçi ödemeleri, nakit giderler, kart borcu ödemeleri, kasa çıkışları.
 function cashRows() {
   const t = getTodayString(), r = [];
-  sales.forEach(s => s.payments.forEach(p => r.push({ date: p.date, g: 'tah', label: 'Tahsilat: ' + s.customer, amount: p.amount })));
+  sales.forEach(s => s.payments.filter(p => p.kind !== 'kesinti').forEach(p => r.push({ date: p.date, g: 'tah', label: 'Tahsilat: ' + s.customer, amount: p.amount })));
   purchases.forEach(x => x.payments.forEach(p => r.push({ date: p.date, g: 'alis', label: 'Ödeme: ' + x.supplier, amount: -p.amount })));
   expenses.filter(e => e.method !== 'card').forEach(e => r.push({ date: e.date, g: 'gider', label: 'Gider: ' + e.category + (e.desc ? ' - ' + e.desc : ''), amount: -e.amount }));
   cardPays.forEach(p => r.push({ date: p.date, g: 'kart', label: 'Kart ödemesi: ' + cardName(p.cardId), amount: -p.amount }));
@@ -57,7 +57,7 @@ async function archiveRecords() {
   const aE = expenses.filter(e => e.method !== 'card' && e.date <= cut);
   if (!aS.length && !aP.length && !aE.length) return alert('Bu tarihe kadar arşivlenecek kayıt yok.');
   // Kasadaki nakit değişmesin diye çıkarılan kayıtların net nakit etkisi "Devir" olarak yazılır
-  const net = round2(aS.reduce((a, r) => a + sumPay(r.payments), 0) - aP.reduce((a, r) => a + sumPay(r.payments), 0) - aE.reduce((a, e) => a + e.amount, 0));
+  const net = round2(aS.reduce((a, r) => a + cashPay(r.payments), 0) - aP.reduce((a, r) => a + cashPay(r.payments), 0) - aE.reduce((a, e) => a + e.amount, 0));
   if (!confirm(`${formatDate(cut)} tarihine kadar ${aS.length} satış, ${aP.length} alış ve ${aE.length} nakit gider arşivlenecek. Kasaya "Devir" olarak ${formatMoney(net)} yazılacak. Önce tam yedek indirilecek. Devam edilsin mi?`)) return;
   await exportData();
   if (!confirm('Yedek dosyası indi mi? İndiyse "Tamam"a basın; kayıtlar programdan çıkarılacak.')) return;

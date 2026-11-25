@@ -109,6 +109,7 @@ function addItemRow(containerId, type, data) {
   row.innerHTML = `
     <div class="flex justify-between items-center">
       <input type="text" placeholder="Ürün Adı (Örn: Domates)" required class="row-prod w-2/3 bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs">
+      ${type === 'sale' ? `<label class="flex items-center gap-1 text-[11px] font-medium text-slate-600 whitespace-nowrap"><input type="checkbox" class="row-gift accent-emerald-600" onchange="toggleGift(this)"> Hediye</label>` : ''}
       <button type="button" onclick="this.closest('.item-row').remove(); calcModalTotal('${containerId}', '${previewId}');" class="text-rose-500 hover:text-rose-700 text-xs px-2">
         <i class="fa-solid fa-trash-can"></i>
       </button>
@@ -139,13 +140,23 @@ function addItemRow(containerId, type, data) {
       unitSel.appendChild(opt);
     }
     unitSel.value = data.unit;
+    if (data.gift) { row.querySelector('.row-gift').checked = true; toggleGift(row.querySelector('.row-gift')); }
   }
   calcModalTotal(containerId, previewId);
+}
+// Hediye kalem: fiyat alanı kapanır, tutar müşteriye yazılmaz
+function toggleGift(cb) {
+  const row = cb.closest('.item-row'), pr = row.querySelector('.row-price');
+  pr.disabled = cb.checked; pr.required = !cb.checked;
+  if (cb.checked) { pr.value = ''; pr.placeholder = 'Hediye'; } else pr.placeholder = 'Satış Fiyatı ₺';
+  row.classList.toggle('bg-emerald-50', cb.checked);
+  calcModalTotal('sale-items-container', 'sale-total-preview');
 }
 
 function calcContainerTotal(containerId) {
   let total = 0;
   document.getElementById(containerId).querySelectorAll('.item-row').forEach(r => {
+    if (r.querySelector('.row-gift')?.checked) return;
     const qty = parseFloat(r.querySelector('.row-qty')?.value) || 0;
     const price = parseFloat(r.querySelector('.row-price')?.value) || 0;
     total += qty * price;
@@ -170,6 +181,9 @@ function readItems(containerId) {
     const prod = r.querySelector('.row-prod').value.trim();
     const qty = parseFloat(r.querySelector('.row-qty').value) || 0;
     const unit = r.querySelector('.row-unit').value;
+    if (r.querySelector('.row-gift')?.checked) { // maliyet satış anında yazılır: sonra değişen fiyatlar eski raporu bozmaz
+      items.push({ prod, qty, unit, price: 0, total: 0, gift: true, cost: round2(qty * unitValue(prod, unit).p) }); return;
+    }
     const price = parseFloat(r.querySelector('.row-price').value) || 0;
     const lineTotal = round2(qty * price);
     total += lineTotal;
@@ -292,6 +306,9 @@ function setPayMode(mode) {
   activeBtn.classList.add(...on);
 
   const input = document.getElementById('pay-modal-amount');
+  const ctx = activePaymentContext;
+  document.getElementById('pay-discount-wrap').classList.toggle('hidden', !(mode === 'add' && ctx && ctx.type === 'sale'));
+  document.getElementById('pay-discount').value = '';
   if (mode === 'add') {
     document.getElementById('pay-modal-amount-label').textContent = 'Eklenecek Tutar (₺)';
     document.getElementById('pay-fill-btn').textContent = 'Kalanı Seç';
@@ -344,8 +361,16 @@ function confirmPayment() {
   if (!isFinite(amt) || amt < 0) return alert('Lütfen geçerli bir tutar girin.');
 
   if (payMode === 'add') {
-    if (amt <= 0) return alert('Eklenecek tutar sıfırdan büyük olmalı.');
-    setPaidTo(rec, round2((rec.paid || 0) + amt), document.getElementById('pay-modal-date').value, 'Tahsilat/Ödeme');
+    const date = document.getElementById('pay-modal-date').value;
+    const disc = activePaymentContext.type === 'sale' ? Math.max(0, parseFloat(document.getElementById('pay-discount').value) || 0) : 0;
+    if (amt <= 0 && disc <= 0) return alert('Eklenecek tutar sıfırdan büyük olmalı.');
+    const rem = round2(rec.total - (rec.paid || 0));
+    if (amt + disc > rem + 0.005 && !confirm(`Tahsilat ve kesinti toplamı (${formatMoney(amt + disc)}) kalan borçtan (${formatMoney(Math.max(0, rem))}) fazla. Yine de kaydedilsin mi?`)) return;
+    if (amt > 0) setPaidTo(rec, round2((rec.paid || 0) + amt), date, 'Tahsilat/Ödeme');
+    if (disc > 0) {
+      rec.payments.push({ id: newId('PY'), date: validDate(date), amount: round2(disc), note: 'Kesinti: ' + document.getElementById('pay-discount-reason').value, kind: 'kesinti' });
+      rec.paid = sumPay(rec.payments);
+    }
   } else {
     setPaidTo(rec, round2(amt), document.getElementById('pay-modal-date').value);
   }

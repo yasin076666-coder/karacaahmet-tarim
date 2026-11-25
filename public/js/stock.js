@@ -25,7 +25,7 @@ document.addEventListener('input', e => {
 
 // Fire değeri: alış kaydı varsa ortalama alış fiyatı, yoksa (kendi ürünü) ortalama satış fiyatı.
 function unitValue(prod, unit) {
-  const k = fk(prod), avg = list => { let q = 0, t = 0; list.forEach(r => r.items.forEach(i => { if (fk(i.prod) === k && i.unit === unit && i.qty > 0) { q += i.qty; t += i.total || round2(i.qty * i.price); } })); return q ? t / q : 0; };
+  const k = fk(prod), avg = list => { let q = 0, t = 0; list.forEach(r => r.items.forEach(i => { if (fk(i.prod) === k && i.unit === unit && i.qty > 0 && !i.gift) { q += i.qty; t += i.total || round2(i.qty * i.price); } })); return q ? t / q : 0; };
   const b = avg(purchases);
   return b ? { p: b, bySale: false } : { p: avg(sales), bySale: true };
 }

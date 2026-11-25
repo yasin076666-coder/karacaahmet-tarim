@@ -116,6 +116,8 @@
           <div class="ledger-row"><span class="text-sm text-slate-600"><i class="fa-solid fa-circle text-[8px] text-emerald-500 mr-2 align-middle"></i>Satış</span><span id="stat-sales" class="text-base font-semibold text-slate-900">₺0</span></div>
           <div class="ledger-row"><span class="text-sm text-slate-600"><i class="fa-solid fa-circle text-[8px] text-amber-500 mr-2 align-middle"></i>Mal alışı</span><span id="stat-purchases" class="text-base font-semibold text-slate-900">₺0</span></div>
           <div class="ledger-row"><span class="text-sm text-slate-600"><i class="fa-solid fa-circle text-[8px] text-rose-500 mr-2 align-middle"></i>Giderler</span><span id="stat-expenses" class="text-base font-semibold text-slate-900">₺0</span></div>
+          <div class="ledger-row"><span class="text-sm text-slate-600"><i class="fa-solid fa-circle text-[8px] text-amber-400 mr-2 align-middle"></i>Kesinti ve iskonto</span><span id="stat-discounts" class="text-base font-semibold text-slate-900">₺0</span></div>
+          <div class="ledger-row"><span class="text-sm text-slate-600"><i class="fa-solid fa-gift text-[10px] text-emerald-500 mr-2 align-middle"></i>Hediye ürün maliyeti</span><span id="stat-gifts" class="text-base font-semibold text-slate-900">₺0</span></div>
           <div class="ledger-row"><span class="text-sm font-semibold text-slate-900">Net kâr</span><span id="stat-net-profit" class="text-lg font-bold text-emerald-700">₺0</span></div>
         </div>
         <div class="border-t-2 border-slate-100 sm:border-t-0">
@@ -179,6 +181,7 @@
         <div id="tbl-stock"></div>
         <div class="text-[11px] font-bold text-slate-600 mt-3 mb-1">Son fire kayıtları</div><div id="waste-list" class="text-[11px]"></div>
       </div>
+      <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm"><h3 class="text-xs font-bold text-slate-700 mb-0.5">🎁 Hediye ve kesintiler</h3><p class="text-[10px] text-slate-400 mb-2">Seçili döneme göre; ikisi de kârdan düşer.</p><div id="tbl-gifts"></div></div>
       <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm"><h3 class="text-xs font-bold text-slate-700 mb-2">📅 Aylık Özet</h3><div id="tbl-monthly"></div></div>
       <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm"><h3 class="text-xs font-bold text-slate-700 mb-0.5">🥬 Ürün Bazlı</h3><p class="text-[10px] text-slate-400 mb-2">Tahmini kâr = satılan miktar × (ort. satış − ort. alış). Alış kaydı olmayan ürünlerde gösterilmez.</p><div id="tbl-products"></div></div>
       <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm"><h3 class="text-xs font-bold text-indigo-700 mb-2">👥 Müşteri Bazlı</h3><div id="tbl-customers"></div></div>
@@ -434,6 +437,16 @@
         <div>
           <label class="block text-[11px] font-semibold text-slate-600 mb-1">İşlem Tarihi</label>
           <input type="date" id="pay-modal-date" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs">
+        </div>
+        <div id="pay-discount-wrap" class="hidden bg-amber-50 border border-amber-200 rounded-xl p-3">
+          <label for="pay-discount" class="block text-[11px] font-semibold text-amber-900 mb-1">Kesinti (₺) <span class="font-normal text-amber-800">— müşterinin ödemeden düştüğü tutar</span></label>
+          <div class="flex gap-2">
+            <input type="number" step="any" min="0" id="pay-discount" placeholder="0" class="w-1/2 bg-white border border-amber-200 rounded-lg px-3 py-2 text-sm font-bold">
+            <select id="pay-discount-reason" aria-label="Kesinti nedeni" class="w-1/2 bg-white border border-amber-200 rounded-lg px-2 py-2 text-xs">
+              <option>İskonto</option><option>Fire / bozuk ürün</option><option>Yuvarlama</option><option>Diğer</option>
+            </select>
+          </div>
+          <p class="text-[10px] text-amber-800 mt-1.5">Borçtan düşer, kasaya girmez; raporlarda gider olarak görünür.</p>
         </div>
         <div class="flex gap-2 pt-2">
           <button type="button" onclick="closeModal('payment-modal')" class="w-1/2 py-2 text-xs text-slate-600 bg-slate-100 rounded-xl font-medium">Vazgeç</button>

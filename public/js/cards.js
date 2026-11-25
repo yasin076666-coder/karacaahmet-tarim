@@ -81,10 +81,15 @@ function renderExtras(fExp, fSal, fPur) {
     expEntries(e).forEach(x => { if (dateFilterPass(x.date)) ent.push({ e, amount: x.amount }); });
   });
   const expTotal = ent.reduce((a, x) => a + x.amount, 0);
-  const net = fSal.reduce((a, x) => a + x.total, 0) - fPur.reduce((a, x) => a + x.total, 0) - expTotal;
+  // Net kâr tek yerde: taksitli giderler + kesinti (tahsilat tarihine göre) + hediye maliyeti (satış tarihine göre)
+  const disc = round2(sales.flatMap(discountsOf).filter(x => dateFilterPass(x.date)).reduce((a, x) => a + x.amount, 0));
+  const gifts = round2(fSal.reduce((a, s) => a + giftCost(s), 0));
+  const net = round2(fSal.reduce((a, x) => a + x.total, 0) - fPur.reduce((a, x) => a + x.total, 0) - expTotal - disc - gifts);
   document.getElementById('stat-expenses').textContent = formatMoney(expTotal);
+  document.getElementById('stat-discounts').textContent = formatMoney(disc);
+  document.getElementById('stat-gifts').textContent = formatMoney(gifts);
   document.getElementById('stat-net-profit').textContent = (net >= 0 ? '+' : '') + formatMoney(net);
-  document.getElementById('stat-net-profit').className = `text-sm sm:text-base font-bold mt-1 ${net >= 0 ? 'text-emerald-600' : 'text-rose-600'}`;
+  document.getElementById('stat-net-profit').className = `text-lg font-bold ${net >= 0 ? 'text-emerald-700' : 'text-rose-600'}`;
   document.getElementById('stat-card-debt').textContent = formatMoney(cards.reduce((a, c) => a + Math.max(0, cardBal(c.id)), 0));
   const due = [];
   document.getElementById('cards-list').innerHTML = cards.length ? cards.map(c => {
@@ -146,8 +151,10 @@ function stmtAllRows(kind, ref) {
   } else {
     const isC = kind === 'customer', key = (partyNames[kind][ref] || '').toLowerCase();
     (isC ? sales : purchases).filter(r => (isC ? r.customer : r.supplier).trim().toLowerCase() === key).forEach(r => {
-      rows.push({ date: r.date, desc: r.items.map(i => `${i.prod} ${i.qty} ${i.unit}×${i.price}`).join(', '), items: r.items, inc: r.total, dec: 0, paid: r.paid || 0, rem: Math.max(0, round2(r.total - (r.paid || 0))), st: (r.paid || 0) >= r.total - 0.005 ? 'paid' : (r.paid || 0) > 0.005 ? 'part' : 'open' });
-      r.payments.forEach(p => rows.push({ date: p.date, desc: (isC ? 'Tahsilat' : 'Ödeme') + (p.note ? ' (' + p.note + ')' : ''), inc: 0, dec: p.amount, del: [kind, r.id, p.id] }));
+      rows.push({ date: r.date, desc: r.items.map(itemLabel).join(', '), items: r.items, inc: r.total, dec: 0, paid: r.paid || 0, rem: Math.max(0, round2(r.total - (r.paid || 0))), st: (r.paid || 0) >= r.total - 0.005 ? 'paid' : (r.paid || 0) > 0.005 ? 'part' : 'open' });
+      r.payments.forEach(p => rows.push(p.kind === 'kesinti'
+        ? { date: p.date, desc: p.note || 'Kesinti', label: 'Kesinti', inc: 0, dec: p.amount, del: [kind, r.id, p.id] }
+        : { date: p.date, desc: (isC ? 'Tahsilat' : 'Ödeme') + (p.note ? ' (' + p.note + ')' : ''), inc: 0, dec: p.amount, del: [kind, r.id, p.id] }));
     });
   }
   return rows.sort((a, b) => a.date.localeCompare(b.date) || ((b.inc > 0) - (a.inc > 0)));
@@ -280,12 +287,12 @@ function buildStatementPdf() {
     g.font = F('normal', 22);
     let lines, pill = '', pw = 0;
     if (r.opening) lines = ['Devir bakiye'];
-    else { pill = r.inc ? d.L[0] : d.L[1]; g.font = F('bold', 15); pw = g.measureText(pill).width + 22; g.font = F('normal', 22); lines = wrap(r.desc, descMax - pw - 10, descMax); }
+    else { pill = r.label || (r.inc ? d.L[0] : d.L[1]); g.font = F('bold', 15); pw = g.measureText(pill).width + 22; g.font = F('normal', 22); lines = wrap(r.desc, descMax - pw - 10, descMax); }
     let its = null;
     if (r.items && r.items.length) {
       const iw = descMax - 170; let first = true;
       its = r.items.map(it => {
-        const ls = wrap(`${it.prod}  ${it.qty} ${it.unit} × ${formatMoney(it.price)}`, first ? iw - pw - 10 : iw, iw);
+        const ls = wrap(it.gift ? `${it.prod}  ${it.qty} ${it.unit} (hediye)` : `${it.prod}  ${it.qty} ${it.unit} × ${formatMoney(it.price)}`, first ? iw - pw - 10 : iw, iw);
         first = false; return { ls, total: it.total || round2(it.qty * it.price) };
       });
       lines = its.flatMap(x => x.ls);
@@ -363,7 +370,7 @@ function stLine(r) {
   return { txt: r.st === 'paid' ? '✓ ' + t : r.st === 'part' ? `◐ ${t}: ${formatMoney(r.paid)} · Kalan: ${formatMoney(r.rem)}` : '○ ' + t, hex: c[0], cls: c[1] };
 }
 function itemsHtml(items) {
-  return '<div class="mt-1 space-y-0.5">' + items.map(i => `<div class="flex justify-between gap-2"><span>${esc(i.prod)} <span class="text-slate-400">${esc(i.qty)} ${esc(i.unit)} × ${formatMoney(i.price)}</span></span><span class="font-semibold text-slate-600 whitespace-nowrap">${formatMoney(i.total || round2(i.qty * i.price))}</span></div>`).join('') + '</div>';
+  return '<div class="mt-1 space-y-0.5">' + items.map(i => `<div class="flex justify-between gap-2"><span>${esc(i.prod)} <span class="text-slate-400">${esc(i.qty)} ${esc(i.unit)} ${i.gift ? '· hediye' : '× ' + formatMoney(i.price)}</span></span><span class="font-semibold text-slate-600 whitespace-nowrap">${formatMoney(i.total || round2(i.qty * i.price))}</span></div>`).join('') + '</div>';
 }
 const ageBadge = n => `<span class="ml-1 text-[10px] font-semibold ${n > 30 ? 'text-rose-600' : n > 14 ? 'text-amber-600' : 'text-slate-400'}">${n} gün</span>`;
 function getPhones() { try { return JSON.parse(localStorage.getItem('tp_phones') || '{}') || {}; } catch (e) { return {}; } }
@@ -432,7 +439,7 @@ function renderStatement() {
           ${d.st && !d.filtered ? `<tr class="bg-slate-50 text-slate-500"><td class="py-1.5 pr-1">${sd(d.st)}</td><td class="pr-1 italic" colspan="2">Devir bakiye</td><td class="text-right font-semibold">${formatMoney(d.opening)}</td><td class="no-print"></td></tr>` : ''}
           ${d.rows.map((r, i) => `<tr class="border-b border-slate-100 align-top ${i % 2 ? 'bg-slate-50/60' : ''}">
             <td class="py-1.5 pr-1 text-slate-500 whitespace-nowrap">${sd(r.date)}</td>
-            <td class="py-1.5 pr-1 break-words"><span class="inline-block text-[9px] font-bold px-1.5 py-0.5 rounded mr-1 ${r.inc ? 'bg-slate-200 text-slate-700' : 'bg-emerald-100 text-emerald-700'}">${r.inc ? d.L[0] : d.L[1]}</span>${r.items && r.items.length ? itemsHtml(r.items) : esc(r.desc)}${(x => x ? `<div class="text-[10px] font-semibold mt-0.5 ${x.cls}">${esc(x.txt)}</div>` : '')(stLine(r))}</td>
+            <td class="py-1.5 pr-1 break-words"><span class="inline-block text-[9px] font-bold px-1.5 py-0.5 rounded mr-1 ${r.inc ? 'bg-slate-200 text-slate-700' : r.label ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-700'}">${r.label || (r.inc ? d.L[0] : d.L[1])}</span>${r.items && r.items.length ? itemsHtml(r.items) : esc(r.desc)}${(x => x ? `<div class="text-[10px] font-semibold mt-0.5 ${x.cls}">${esc(x.txt)}</div>` : '')(stLine(r))}</td>
             <td class="py-1.5 pr-1 text-right font-bold whitespace-nowrap ${r.inc ? 'text-slate-800' : 'text-emerald-600'}">${r.inc ? formatMoney(r.inc) : '-' + formatMoney(r.dec)}</td>
             <td class="py-1.5 text-right font-semibold whitespace-nowrap text-slate-700">${formatMoney(r.bal)}</td>
             <td class="no-print">${r.del ? `<button onclick="delStmtPay(${i})" class="text-slate-300 hover:text-rose-500 px-1">×</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="4" class="py-6 text-center text-slate-400">Bu aralıkta hareket yok.</td></tr>'}

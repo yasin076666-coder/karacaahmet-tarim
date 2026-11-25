@@ -252,7 +252,7 @@ function asstReport(cmd) {
     return `Toplam alacak: <b>${formatMoney(bal(sales, 'customer'))}</b> · Toplam borç: <b>${formatMoney(bal(purchases, 'supplier'))}</b>`;
   }
   const S = sum(sales.filter(r => inR(r.date)), r => r.total), P = sum(purchases.filter(r => inR(r.date)), r => r.total);
-  const E = sum(expenses.flatMap(expEntries).filter(x => inR(x.date)), x => x.amount);
+  const E = round2(sum(expenses.flatMap(expEntries).filter(x => inR(x.date)), x => x.amount) + sum(sales.flatMap(discountsOf).filter(p => inR(p.date)), p => p.amount) + sum(sales.filter(r => inR(r.date)), giftCost)); // kesinti ve hediye dahil
   if (cmd.metric === 'top') {
     const m = {}; sales.filter(r => inR(r.date)).forEach(r => r.items.forEach(i => { const k = fk(i.prod) + '|' + i.unit; const o = m[k] || (m[k] = { n: i.prod, u: i.unit, q: 0, t: 0 }); o.q += i.qty; o.t += i.total || round2(i.qty * i.price); }));
     const top = Object.values(m).sort((x, y) => y.t - x.t).slice(0, 3);
@@ -262,7 +262,7 @@ function asstReport(cmd) {
   if (cmd.metric === 'profit') return `${label}: satış ${formatMoney(S)} − alış ${formatMoney(P)} − gider ${formatMoney(E)} = net kâr <b>${formatMoney(round2(S - P - E))}</b>`;
   if (cmd.metric === 'expense') return `${label} gider: <b>${formatMoney(E)}</b>` + (P ? ` (ayrıca mal alışı ${formatMoney(P)})` : '');
   if (cmd.metric === 'purchase') return `${label} mal alışı: <b>${formatMoney(P)}</b>`;
-  if (cmd.metric === 'collected') return `${label} tahsilat: <b>${formatMoney(sum(sales.flatMap(r => r.payments).filter(p => inR(p.date)), p => p.amount))}</b>`;
+  if (cmd.metric === 'collected') return `${label} tahsilat: <b>${formatMoney(sum(sales.flatMap(r => r.payments).filter(p => inR(p.date) && p.kind !== 'kesinti'), p => p.amount))}</b>`;
   return `${label} satış: <b>${formatMoney(S)}</b> (${sales.filter(r => inR(r.date)).length} satış)`;
 }
 // ---------------- Sesle söyleme (iPhone uyumlu) ----------------
