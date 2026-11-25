@@ -63,6 +63,16 @@ const cases = [
   ['Halil iki bin buçuk ödedi', { type: 'collect', party: 'Halil', amount: 2500 }],
   ['Halil yüz buçuk ödedi', { type: 'collect', party: 'Halil', amount: 150 }],
   ["Halil'e iki buçuk kilo lahana 30 liradan sattım", { type: 'sale', party: 'Halil', items: [I('Lahana', 2.5, 'kg', 30)] }],
+  ['Halil 9500 ödedi 500 kesti', { type: 'collect', party: 'Halil', amount: 9500, discount: 500, reason: 'Diğer' }],
+  ["Fatoş'tan 2000 tahsil ettim 100 iskonto", { type: 'collect', party: 'Fatoş', amount: 2000, discount: 100, reason: 'İskonto' }],
+  ['Halil 1000 ödedi 50 yuvarlama', { type: 'collect', party: 'Halil', amount: 1000, discount: 50, reason: 'Yuvarlama' }],
+  ["Halil'e 300 lira fire düştüm", { type: 'collect', party: 'Halil', amount: 0, discount: 300, reason: 'Fire / bozuk ürün' }],
+  ['Halil 1000 lira ödedi', { type: 'collect', party: 'Halil', amount: 1000, discount: 0 }],
+  ["Halil'e 20 kıvırcık 25'ten sattım, 5 maydanoz hediye", { type: 'sale', party: 'Halil', items: [I('Kıvırcık', 20, '', 25), { prod: 'Maydanoz', qty: 5, unit: '', price: 0, gift: true }] }],
+  ["Latif'e 3 kasa lahana hediye verdim", { type: 'sale', party: 'Latif', items: [{ prod: 'Lahana', qty: 3, unit: 'kasa', price: 0, gift: true }] }],
+  ["hediye 2 kara lahana, Halil'e 10 kilo lahana 15'ten sattım", { type: 'sale', party: 'Halil', items: [{ prod: 'Kara lahana', qty: 2, unit: '', price: 0, gift: true }, I('Lahana', 10, 'kg', 15)] }],
+  ['Bu ay ne kadar hediye verdim', { type: 'report', period: 'month', metric: 'gift' }],
+  ['Kesintiler ne kadar', { type: 'report', metric: 'discount' }],
   ['merhaba', { type: 'unknown' }],
 ];
 let bad = 0;

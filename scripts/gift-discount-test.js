@@ -64,6 +64,26 @@ const s = http.createServer((q, res) => { const u = q.url.split('?')[0]; const f
   check(await p.locator('#sale-items-container .row-gift').nth(1).isChecked(), 'düzenlemede hediye işareti korunuyor');
   await p.evaluate(() => closeModal('sale-modal'));
 
+  console.log('4) Asistanla kesinti ve hediye');
+  const ask = async t => { await p.fill('#asst-input', t); await p.locator('#asst-input').press('Enter'); await p.waitForTimeout(150); return p.locator('#asst-out').innerText(); };
+  const debtOf = n => p.evaluate(n => round2(sales.filter(r => fk(r.customer) === fk(n)).reduce((a, r) => a + r.total - (r.paid || 0), 0)), n);
+  const cust = await p.evaluate(() => { const m = {}; sales.forEach(r => { const k = r.customer.trim(); m[k] = (m[k] || 0) + r.total - (r.paid || 0); }); return Object.entries(m).find(([, v]) => v > 2000)[0]; });
+  const d0 = await debtOf(cust), c0 = await cash();
+  const out = await ask(`${cust} 1000 ödedi 200 kesti`);
+  check(Math.abs(d0 - (await debtOf(cust)) - 1200) < 0.01, `asistan: ${cust} borcu 1200 azaldı (1000 nakit + 200 kesinti)`);
+  check(Math.abs((await cash()) - c0 - 1000) < 0.01, 'asistan: kasaya yalnız 1000 girdi');
+  check(await p.evaluate(n => sales.some(r => fk(r.customer) === fk(n) && r.payments.some(x => x.kind === 'kesinti' && x.note === 'Kesinti: Diğer')), cust), 'asistan: kesinti satırı kaydedildi');
+  check(out.includes('kesinti'), 'asistan cevabında kesinti belirtildi: ' + out.split('\n')[0]);
+  await ask("Latif'e 10 kıvırcık 25'ten sattım 3 maydanoz hediye");
+  const r2 = p.locator('#sale-items-container .item-row');
+  check(await p.locator('#sale-modal').isVisible() && await r2.count() === 2, 'asistan: iki kalemli satış formu açıldı');
+  check(await r2.nth(1).locator('.row-gift').isChecked() && await r2.nth(1).locator('.row-price').isDisabled(), 'asistan: maydanoz hediye işaretli, fiyatı kapalı');
+  await p.locator('#sale-form').evaluate(f => f.requestSubmit());
+  const ls = await p.evaluate(() => sales.find(r => r.customer === 'Latif' && r.items.some(i => i.gift && fk(i.prod) === 'maydanoz')));
+  check(ls && ls.total === 250 && ls.items.find(i => i.gift).cost > 0, `asistan: satış 250 ₺, hediyenin maliyeti yazıldı (${ls && ls.items.find(i => i.gift).cost})`);
+  check((await ask('Bu ay ne kadar hediye verdim')).includes('hediye ürün maliyeti'), 'asistan: hediye sorusu cevaplandı');
+  check((await ask('Kesintiler ne kadar')).includes('kesinti'), 'asistan: kesinti sorusu cevaplandı');
+
   console.log('3) Kalıcılık');
   await p.reload({ waitUntil: 'networkidle' });
   check(await p.evaluate(() => sales.find(x => x.customer === 'Hediye Test').items.some(i => i.gift && i.cost > 0)), 'yeniden açınca hediye bilgisi duruyor');

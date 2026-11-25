@@ -80,7 +80,7 @@ function parseCommand(text, ctx) {
   if (/\?/.test(text) || has(/ne kadar|(?<![a-z])kac(?![a-z])|nedir|rapor|ozet|goster|en cok|kasada|kasa ne|(?<![a-z])kim(?![a-z])/)) {
     const period = has(/gecen ay/) ? 'lastmonth' : has(/bu hafta|haftalik|(?<![a-z])hafta/) ? 'week' : has(/bu ay|aylik|(?<![a-z])ay(?![a-z])/) ? 'month'
       : has(/bu yil|yillik|(?<![a-z])yil/) ? 'year' : has(/(?<![a-z])dun(?![a-z])/) ? 'yesterday' : has(/tum|hepsi|toplam/) ? 'all' : 'today';
-    const metric = has(/kasa|nakit/) ? 'cash' : has(/borc|alacak/) ? 'balance' : has(/en cok/) ? 'top' : has(/(?<![a-z])kar(?![a-z])|kazan/) ? 'profit'
+    const metric = has(/kasa|nakit/) ? 'cash' : has(/hediye|ikram|bedava/) ? 'gift' : has(/kesinti|iskonto|indirim/) ? 'discount' : has(/borc|alacak/) ? 'balance' : has(/en cok/) ? 'top' : has(/(?<![a-z])kar(?![a-z])|kazan/) ? 'profit'
       : has(/gider|masraf|harca/) ? 'expense' : has(/tahsil/) ? 'collected' : has(/alis|aldi|aldik/) ? 'purchase' : 'sales';
     const c = asstFindName(t, ctx.customers), s = asstFindName(t, ctx.suppliers);
     return { type: 'report', period, metric, party: c ? { name: c.name, kind: 'customer' } : s ? { name: s.name, kind: 'supplier' } : null };
@@ -93,6 +93,13 @@ function parseCommand(text, ctx) {
   else {
     const m = t.match(/^((?:\p{L}+ ){0,2}\p{L}+)'\p{L}+/u) || t.match(/^(\p{L}+) (?=\d)/u);
     if (m && !ASST_FILLER.has(m[1])) { party = asstTitle(m[1]); t = t.slice(m[0].length).trim(); }
+  }
+  // Kesinti (tahsilattan düşülen)
+  let discount = 0, reason = '';
+  const dm = t.match(new RegExp(`(\\d+(?:\\.\\d+)?)\\s*(?:lira|tl)?\\s*(?:\\p{L}+\\s)?(?:kesti|kestim|kesinti|iskonto|indirim|yuvarla\\p{L}*|fire|düş\\p{L}*)${NA}`, 'u'));
+  if (dm) {
+    discount = +dm[1]; t = t.replace(dm[0], ' ');
+    reason = has(/iskonto|indirim/) ? 'İskonto' : has(/fire|bozuk|curuk|ezik/) ? 'Fire / bozuk ürün' : has(/yuvarla|kusurat/) ? 'Yuvarlama' : 'Diğer';
   }
   // Ödeme
   let paid = null;
@@ -108,7 +115,9 @@ function parseCommand(text, ctx) {
       const prodRaw = cur.words.join(' '), fr = asstFold(prodRaw);
       // tam eşleşme yoksa sondaki kelimelerle eşleşen en uzun bilinen ürün ("faturası kıvırcık" → Kıvırcık)
       const known = ctx.products.find(p => asstFold(p) === fr) || ctx.products.filter(p => fr.endsWith(' ' + asstFold(p))).sort((a, b) => b.length - a.length)[0];
-      items.push({ prod: known || asstTitle(prodRaw), qty: cur.nums[0], unit: cur.unit, price: cur.nums[1] || 0 });
+      const it = { prod: known || asstTitle(prodRaw), qty: cur.nums[0], unit: cur.unit, price: cur.gift ? 0 : cur.nums[1] || 0 };
+      if (cur.gift) it.gift = true;
+      items.push(it);
     }
     cur = { nums: [], unit: '', words: [] };
   };
@@ -121,16 +130,23 @@ function parseCommand(text, ctx) {
       cur.nums.push(+tok); if (cur.nums.length > 2) cur.nums.shift(); if (cur.nums.length === 2 && cur.words.length) close(); return;
     }
     if (ASST_UNITS[tok]) { cur.unit = ASST_UNITS[tok]; return; }
+    if (/^(hediye|hediyelik|bedava|ikram)$/.test(tok)) {   // "5 maydanoz hediye" ya da "hediye 5 maydanoz"
+      if (cur.words.length && cur.nums.length) { cur.gift = true; close(); }
+      else if (!cur.words.length && !cur.nums.length && items.length && toks.slice(i + 1).every(x => !/^\d/.test(x))) Object.assign(items[items.length - 1], { price: 0, gift: true });
+      else cur.gift = true;
+      return;
+    }
     if (!ASST_FILLER.has(tok) && /^\p{L}+$/u.test(tok)) cur.words.push(tok);
   });
   close();
   const amount = (t.match(/\d+(?:\.\d+)?/) || [])[0];
   // Niyet
   if (has(/(?<![a-z])sat(t|is|ar|i)|(?<![a-z])sat(?![a-z])/) || (items.length && has(/verdim|verdik/))) return { type: 'sale', party, date, items, paid: paid === null ? 0 : paid };
-  if (!items.length && party && has(/odedi(?!m)|tahsil|yatirdi|getirdi|verdi(?!m)/) && (paid !== null || amount)) return { type: 'collect', party, date, amount: typeof paid === 'number' ? paid : +amount };
+  if (!items.length && party && has(/odedi(?!m)|tahsil|yatirdi|getirdi|verdi(?!m)/) && (paid !== null || amount)) return { type: 'collect', party, date, amount: typeof paid === 'number' ? paid : +amount, discount, reason };
+  if (!items.length && party && discount) return { type: 'collect', party, date, amount: typeof paid === 'number' ? paid : 0, discount, reason };
   if (!items.length && party && sup && hit === sup && has(/odedim|verdim|odeme/) && (paid !== null || amount)) return { type: 'pay', party, date, amount: typeof paid === 'number' ? paid : +amount };
   if (items.length && has(/aldim|aldik|(?<![a-z])alis|(?<![a-z])aldi/)) return { type: 'purchase', party, date, items, paid: paid === null ? 0 : paid };
-  if (!items.length && party && cust && has(/aldim|aldik/) && typeof paid === 'number') return { type: 'collect', party, date, amount: paid };
+  if (!items.length && party && cust && has(/aldim|aldik/) && typeof paid === 'number') return { type: 'collect', party, date, amount: paid, discount, reason };
   const cat = ASST_CATS.find(([, re]) => has(re));
   const expAmount = typeof paid === 'number' ? paid : amount ? +amount : 0;
   if (expAmount && (cat || has(/gider|masraf|harcad|odedim|verdim/))) {
@@ -169,7 +185,7 @@ function asstCtx() {
     products: uniq([...sales, ...purchases].flatMap(r => r.items.map(i => i.prod)).concat(wastes.map(w => w.prod))),
   };
 }
-const ASST_HELP = `<b>Şöyle söyleyebilirsiniz:</b><br>• Halil'e 20 adet kıvırcık 25 liradan sattım, 200 peşin aldım<br>• Halden 30 kasa marul 18'den aldım, veresiye<br>• 500 lira mazot · dün yemek 250 lira kartla<br>• Halil 1000 lira ödedi<br>• Bugün ne kadar sattım? · Bu ay kâr ne kadar? · Halil'in borcu ne kadar? · Kasada ne kadar var?`;
+const ASST_HELP = `<b>Şöyle söyleyebilirsiniz:</b><br>• Halil'e 20 adet kıvırcık 25 liradan sattım, 200 peşin aldım<br>• Halden 30 kasa marul 18'den aldım, veresiye<br>• 500 lira mazot · dün yemek 250 lira kartla<br>• Halil 1000 lira ödedi · Halil 9500 ödedi 500 kesti<br>• Latif'e 10 kıvırcık 25'ten sattım, 3 maydanoz hediye<br>• Bugün ne kadar sattım? · Bu ay kâr ne kadar? · Halil'in borcu ne kadar? · Kasada ne kadar var?`;
 
 function runAssistant() {
   asstDictating = false; clearTimeout(asstDictT);   // elle gönderildiyse dikte sayacı iptal
@@ -195,7 +211,9 @@ function asstOpenForm(cmd, inp) {
     row.querySelector('.row-prod').value = it.prod;
     if (unit) row.querySelector('.row-unit').value = unit;
     row.querySelector('.row-qty').value = it.qty;
-    if (price) row.querySelector('.row-price').value = price;
+    const g = row.querySelector('.row-gift');
+    if (it.gift && g) { g.checked = true; toggleGift(g); }
+    else if (price) row.querySelector('.row-price').value = price;
   });
   calcModalTotal(P + '-items-container', P + '-total-preview');
   if (cmd.paid === 'full') fillFullPayment(P + '-items-container', P + '-paid');
@@ -217,20 +235,19 @@ function asstOpenExpense(cmd, inp) {
 function asstSettle(cmd, inp) {
   const c = cmd.type === 'collect', list = c ? sales : purchases, key = c ? 'customer' : 'supplier';
   const open = list.filter(r => fk(r[key]) === fk(cmd.party) && r.total - (r.paid || 0) > 0.005).sort((a, b) => a.date.localeCompare(b.date));
-  if (!(cmd.amount > 0)) return asstSay('Tutarı anlayamadım.');
+  const disc = c ? round2(cmd.discount || 0) : 0;
+  if (!(cmd.amount > 0) && !(disc > 0)) return asstSay('Tutarı anlayamadım.');
   if (!open.length) return asstSay(`<b>${esc(cmd.party)}</b> için açık ${c ? 'alacak' : 'borç'} bulunamadı.`);
-  const debt = round2(open.reduce((a, r) => a + r.total - (r.paid || 0), 0)), apply = Math.min(cmd.amount, debt);
-  const label = c ? 'tahsilat' : 'ödeme';
-  if (!confirm(`${cmd.party}: ${formatMoney(apply)} ${label}, ${open.length} açık kayda eskiden yeniye işlenecek.` + (cmd.amount > debt ? ` Toplam ${c ? 'alacak' : 'borç'} ${formatMoney(debt)}; fazla ${formatMoney(cmd.amount - debt)} işlenmeyecek.` : '') + ' Onaylıyor musunuz?')) return;
-  let left = apply;
-  open.forEach(r => {
-    if (left <= 0.005) return;
-    const p = round2(Math.min(left, r.total - (r.paid || 0)));
-    r.payments.push({ id: newId('PY'), date: cmd.date, amount: p, note: 'Asistan: ' + label });
-    r.paid = sumPay(r.payments); left = round2(left - p);
-  });
+  const debt = round2(open.reduce((a, r) => a + r.total - (r.paid || 0), 0));
+  const cash = round2(Math.min(cmd.amount || 0, debt)), cut = round2(Math.min(disc, debt - cash));
+  const label = c ? 'tahsilat' : 'ödeme', what = [cash ? `${formatMoney(cash)} ${label}` : '', cut ? `${formatMoney(cut)} kesinti (${cmd.reason || 'Diğer'})` : ''].filter(Boolean).join(' + ');
+  if (!confirm(`${cmd.party}: ${what}, ${open.length} açık kayda eskiden yeniye işlenecek.` + ((cmd.amount || 0) + disc > debt + 0.005 ? ` Toplam ${c ? 'alacak' : 'borç'} ${formatMoney(debt)}; fazlası işlenmeyecek.` : '') + ' Onaylıyor musunuz?')) return;
+  // Önce nakit, sonra kesinti eskiden yeniye dağıtılır; kesinti borçtan düşer, kasaya girmez
+  const spread = (total, mk) => { let left = total; open.forEach(r => { if (left <= 0.005) return; const p = round2(Math.min(left, r.total - (r.paid || 0))); if (p <= 0) return; r.payments.push(mk(p)); r.paid = sumPay(r.payments); left = round2(left - p); }); };
+  spread(cash, p => ({ id: newId('PY'), date: cmd.date, amount: p, note: 'Asistan: ' + label }));
+  spread(cut, p => ({ id: newId('PY'), date: cmd.date, amount: p, note: 'Kesinti: ' + (cmd.reason || 'Diğer'), kind: 'kesinti' }));
   saveAll(); applyFilters(); inp.value = '';
-  asstSay(`✔ ${esc(cmd.party)}: ${formatMoney(apply)} ${label} işlendi. Kalan ${c ? 'alacak' : 'borç'}: <b>${formatMoney(round2(debt - apply))}</b>`);
+  asstSay(`✔ ${esc(cmd.party)}: ${what} işlendi. Kalan ${c ? 'alacak' : 'borç'}: <b>${formatMoney(round2(debt - cash - cut))}</b>`);
 }
 function asstRange(period) {
   const t = getTodayString(), d = new Date(t + 'T12:00:00'), ym = (y, m) => y + '-' + String(m).padStart(2, '0');
@@ -262,6 +279,12 @@ function asstReport(cmd) {
   if (cmd.metric === 'profit') return `${label}: satış ${formatMoney(S)} − alış ${formatMoney(P)} − gider ${formatMoney(E)} = net kâr <b>${formatMoney(round2(S - P - E))}</b>`;
   if (cmd.metric === 'expense') return `${label} gider: <b>${formatMoney(E)}</b>` + (P ? ` (ayrıca mal alışı ${formatMoney(P)})` : '');
   if (cmd.metric === 'purchase') return `${label} mal alışı: <b>${formatMoney(P)}</b>`;
+  if (cmd.metric === 'gift') {
+    const m = {}; sales.filter(r => inR(r.date)).forEach(r => { const g = giftCost(r); if (g) m[r.customer.trim()] = (m[r.customer.trim()] || 0) + g; });
+    const top = Object.entries(m).sort((a, b) => b[1] - a[1]);
+    return `${label} hediye ürün maliyeti: <b>${formatMoney(round2(top.reduce((a, x) => a + x[1], 0)))}</b>` + top.slice(0, 3).map(([n, v]) => `<br>• ${esc(n)}: ${formatMoney(round2(v))}`).join('');
+  }
+  if (cmd.metric === 'discount') return `${label} kesinti ve iskonto: <b>${formatMoney(sum(sales.flatMap(discountsOf).filter(p => inR(p.date)), p => p.amount))}</b>`;
   if (cmd.metric === 'collected') return `${label} tahsilat: <b>${formatMoney(sum(sales.flatMap(r => r.payments).filter(p => inR(p.date) && p.kind !== 'kesinti'), p => p.amount))}</b>`;
   return `${label} satış: <b>${formatMoney(S)}</b> (${sales.filter(r => inR(r.date)).length} satış)`;
 }
